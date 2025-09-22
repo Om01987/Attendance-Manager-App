@@ -16,4 +16,15 @@
     <color name="error_red">#F44336</color>
     <color name="background_light">#FAFAFA</color>
     <color name="surface_variant">#F5F5F5</color>
+    <color name="md_theme_light_surface">#FFFFFF</color>
+    <color name="md_theme_light_onSurface">#1C1B1F</color>
+
+    <!-- Optional but recommended for consistency -->
+    <color name="md_theme_light_background">#FFFBFE</color>
+    <color name="md_theme_light_onBackground">#1C1B1F</color>
+
+    <!-- Dark equivalents (optional, if using DayNight) -->
+    <color name="md_theme_dark_surface">#1C1B1F</color>
+    <color name="md_theme_dark_onSurface">#E6E1E5</color>
+
 </resources>
