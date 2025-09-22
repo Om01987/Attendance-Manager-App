@@ -50,6 +50,8 @@ dependencies {
     implementation libs.firebase.storage
     implementation libs.firebase.messaging
 
+    implementation 'com.karumi:dexter:6.2.3'
+
     // Material Design 3
     implementation 'com.google.android.material:material:1.13.0'
 

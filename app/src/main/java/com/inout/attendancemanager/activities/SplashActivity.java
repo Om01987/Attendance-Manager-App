@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
 import android.util.Log;
 import android.widget.TextView;
@@ -17,6 +18,7 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.inout.attendancemanager.MainActivity;
 import com.inout.attendancemanager.R;
 import com.inout.attendancemanager.utils.Constants;
+import com.inout.attendancemanager.utils.PermissionUtils;
 
 public class SplashActivity extends AppCompatActivity {
 
@@ -57,7 +59,6 @@ public class SplashActivity extends AppCompatActivity {
 
             Log.d(TAG, "Firebase initialized successfully");
             tvLoading.setText("Firebase connected...");
-
         } catch (Exception e) {
             Log.e(TAG, "Firebase initialization failed: " + e.getMessage());
             tvLoading.setText("Connection failed");
@@ -77,31 +78,39 @@ public class SplashActivity extends AppCompatActivity {
 
             Log.d(TAG, "Device ID generated: " + deviceId);
             tvLoading.setText("Device registered...");
-
         } catch (Exception e) {
             Log.e(TAG, "Device fingerprinting failed: " + e.getMessage());
         }
     }
 
     private void startSplashTimer() {
-        new Handler().postDelayed(() -> {
-            checkUserSession();
-        }, SPLASH_DELAY);
+        new Handler(Looper.getMainLooper()).postDelayed(this::checkUserSession, SPLASH_DELAY);
     }
 
+    // Updated routing: compute permission status at runtime instead of using a stored flag
     private void checkUserSession() {
-        // Check if user is logged in
         String userId = sharedPreferences.getString(Constants.PREF_USER_ID, null);
 
+        boolean permissionsGranted = PermissionUtils.hasAllRequiredPermissions(this);
+        if (!permissionsGranted) {
+            tvLoading.setText("Setting up permissions...");
+            navigateToPermissions();
+            return;
+        }
+
         if (userId != null && !userId.isEmpty()) {
-            // User is logged in - go to dashboard
             tvLoading.setText("Welcome back!");
             navigateToDashboard();
         } else {
-            // User not logged in - go to login/registration
             tvLoading.setText("Getting started...");
             navigateToLogin();
         }
+    }
+
+    private void navigateToPermissions() {
+        Intent intent = new Intent(SplashActivity.this, PermissionActivity.class);
+        startActivity(intent);
+        finish();
     }
 
     private void navigateToDashboard() {
