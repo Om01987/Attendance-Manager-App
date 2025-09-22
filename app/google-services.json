@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "981222743802",
+    "project_id": "attendancemanager-cec18",
+    "storage_bucket": "attendancemanager-cec18.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:981222743802:android:e94610904b9a3622a1f343",
+        "android_client_info": {
+          "package_name": "com.inout.attendancemanager"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD1TcgCe4JtI7paYvXFEf9_aiSIJZdTtEg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
