@@ -5,50 +5,63 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import androidx.core.content.ContextCompat;
+import java.util.ArrayList;
+import java.util.List;
 
 public class PermissionUtils {
 
-    // utils/PermissionUtils.java
-    public static boolean hasAllRequiredPermissions(Context ctx) {
-        // Always-required dangerous permissions
-        String[] base = new String[] {
-                Manifest.permission.CAMERA,
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION,
-                Manifest.permission.READ_PHONE_STATE
-        };
-        for (String p : base) {
-            if (ContextCompat.checkSelfPermission(ctx, p) != PackageManager.PERMISSION_GRANTED) return false;
-        }
+    // Set true only if reading user gallery files is required now; Photo Picker needs no permission.
+    public static final boolean NEEDS_GALLERY_READ = false;
 
-        // Storage logic:
-        // If app ONLY saves its own photos (no gallery reads), no storage permission needed on API 29+.
-        // If you DO read user images from shared storage, request granular media perms on API 33+.
-        boolean needsReadFromGallery = false; // set true if you actually read existing media
+    // Request only core permissions; accept coarse OR fine for location.
+    public static String[] buildRequiredPermissions(Context ctx) {
+        List<String> req = new ArrayList<>();
 
-        if (needsReadFromGallery) {
+        // Core for this phase
+        req.add(Manifest.permission.CAMERA);
+        // Request both; we'll accept either one being granted
+        req.add(Manifest.permission.ACCESS_COARSE_LOCATION);
+        req.add(Manifest.permission.ACCESS_FINE_LOCATION);
+
+        // READ_PHONE_STATE is not needed to get ANDROID_ID; keep it optional by not blocking on it.
+        // If really needed later, add to request and gate accordingly.
+        // req.add(Manifest.permission.READ_PHONE_STATE);
+
+        // Storage only if truly needed and per-SDK rules
+        if (NEEDS_GALLERY_READ) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // 33+
-                if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED)
-                    return false;
-                // Add READ_MEDIA_VIDEO if needed
+                req.add(Manifest.permission.READ_MEDIA_IMAGES);
             } else if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) { // ≤28
-                if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED)
-                    return false;
-            } else {
-                // API 29–32: MediaStore read flows can work without legacy permission when using the Photo Picker.
-                // If you insist on broad reads on 29–32, READ_EXTERNAL_STORAGE (maxSdkVersion 32) applies.
+                req.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+                req.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
             }
         }
 
-        // Android 12+ Bluetooth permissions (only if needed by your proximity feature)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED)
-                return false;
-            if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED)
-                return false;
-        }
-
-        return true;
+        return req.toArray(new String[0]);
     }
 
+    // Core gate: camera AND (coarse OR fine); phone state not required for this phase.
+    public static boolean hasAllRequiredPermissions(Context ctx) {
+        boolean camera = isGranted(ctx, Manifest.permission.CAMERA);
+        boolean coarse = isGranted(ctx, Manifest.permission.ACCESS_COARSE_LOCATION);
+        boolean fine = isGranted(ctx, Manifest.permission.ACCESS_FINE_LOCATION);
+
+        // If gallery reads are enabled, add that here per-SDK
+        if (NEEDS_GALLERY_READ) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                boolean media = isGranted(ctx, Manifest.permission.READ_MEDIA_IMAGES);
+                return camera && (coarse || fine) && media;
+            } else if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+                boolean read = isGranted(ctx, Manifest.permission.READ_EXTERNAL_STORAGE);
+                boolean write = isGranted(ctx, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+                return camera && (coarse || fine) && read && write;
+            }
+        }
+
+        return camera && (coarse || fine);
+    }
+
+    private static boolean isGranted(Context ctx, String p) {
+        return ContextCompat.checkSelfPermission(ctx, p) == PackageManager.PERMISSION_GRANTED;
+    }
 }

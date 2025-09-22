@@ -16,7 +16,6 @@ import androidx.core.content.ContextCompat;
 import com.google.android.material.button.MaterialButton;
 import com.inout.attendancemanager.R;
 import com.inout.attendancemanager.utils.Constants;
-import com.inout.attendancemanager.utils.PermissionConstants;
 import com.inout.attendancemanager.utils.PermissionUtils;
 import com.karumi.dexter.Dexter;
 import com.karumi.dexter.MultiplePermissionsReport;
@@ -25,18 +24,15 @@ import com.karumi.dexter.listener.PermissionDeniedResponse;
 import com.karumi.dexter.listener.PermissionRequest;
 import com.karumi.dexter.listener.multi.MultiplePermissionsListener;
 
+import java.util.Iterator;
 import java.util.List;
 
 public class PermissionActivity extends AppCompatActivity {
 
-    private static final String TAG = "PermissionActivity";
-
-    // UI Components
     private MaterialButton btnGrantPermissions;
     private MaterialButton btnCheckPermissions;
     private TextView tvSkip;
 
-    // Status ImageViews
     private ImageView ivCameraStatus;
     private ImageView ivLocationStatus;
     private ImageView ivPhoneStatus;
@@ -51,7 +47,7 @@ public class PermissionActivity extends AppCompatActivity {
 
         initViews();
         initClickListeners();
-        initBackHandler(); // OnBackPressedDispatcher
+        initBackHandler();
         checkCurrentPermissionStatus();
     }
 
@@ -66,6 +62,12 @@ public class PermissionActivity extends AppCompatActivity {
         ivStorageStatus = findViewById(R.id.iv_storage_status);
 
         sharedPreferences = getSharedPreferences(Constants.PREF_NAME, MODE_PRIVATE);
+
+        // Storage is not required on API > 28; show green to avoid confusion
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.P) {
+            ivStorageStatus.setImageResource(R.drawable.ic_granted);
+            ivStorageStatus.setColorFilter(ContextCompat.getColor(this, R.color.success_green));
+        }
     }
 
     private void initClickListeners() {
@@ -85,7 +87,7 @@ public class PermissionActivity extends AppCompatActivity {
             public void handleOnBackPressed() {
                 new AlertDialog.Builder(PermissionActivity.this)
                         .setTitle("Exit Setup?")
-                        .setMessage("Are you sure you want to exit the permission setup? The app may not function properly without required permissions.")
+                        .setMessage("Exiting now may limit app functionality until permissions are granted.")
                         .setPositiveButton("Exit", (d, w) -> {
                             setEnabled(false);
                             getOnBackPressedDispatcher().onBackPressed();
@@ -99,21 +101,38 @@ public class PermissionActivity extends AppCompatActivity {
     }
 
     private void requestAllPermissions() {
+        String[] reqPerms = PermissionUtils.buildRequiredPermissions(this);
+
         Dexter.withContext(this)
-                .withPermissions(PermissionConstants.REQUIRED_PERMISSIONS)
+                .withPermissions(reqPerms)
                 .withListener(new MultiplePermissionsListener() {
                     @Override
                     public void onPermissionsChecked(MultiplePermissionsReport report) {
-                        if (report.areAllPermissionsGranted()) {
+                        // After the system dialog(s), compute using our own gate: camera AND (coarse OR fine)
+                        boolean coreGranted = PermissionUtils.hasAllRequiredPermissions(PermissionActivity.this);
+
+                        // Build a filtered denied list to ignore storage/media not required on modern Android
+                        List<PermissionDeniedResponse> denied = report.getDeniedPermissionResponses();
+                        filterOutNonBlockingStorageDenials(denied);
+
+                        if (coreGranted) {
                             updateAllPermissionStatus(true);
                             savePermissionGrantedStatus();
-                            proceedToNextActivity(); // Go to Mobile Verification
-                        } else {
-                            updatePermissionStatusIndividually();
-                            handleDeniedPermissions(report.getDeniedPermissionResponses());
-                            if (report.isAnyPermissionPermanentlyDenied()) {
+                            proceedToNextActivity();
+                            return;
+                        }
+
+                        updatePermissionStatusIndividually();
+
+                        if (!denied.isEmpty()) {
+                            handleDeniedPermissions(denied);
+                            // Only show Settings if any of the still-denied are permanently denied and truly required
+                            if (isAnyPermanentlyDeniedRequired(denied)) {
                                 showSettingsDialog();
                             }
+                        } else {
+                            // Nothing critical denied → proceed
+                            proceedToNextActivity();
                         }
                     }
 
@@ -125,32 +144,55 @@ public class PermissionActivity extends AppCompatActivity {
                 .check();
     }
 
+    private boolean isAnyPermanentlyDeniedRequired(List<PermissionDeniedResponse> denied) {
+        if (denied == null) return false;
+        for (PermissionDeniedResponse dr : denied) {
+            // If you need to guard on required ones only, check by name here (camera/location)
+            String p = dr.getPermissionName();
+            boolean required = p.equals(android.Manifest.permission.CAMERA)
+                    || p.equals(android.Manifest.permission.ACCESS_COARSE_LOCATION)
+                    || p.equals(android.Manifest.permission.ACCESS_FINE_LOCATION);
+            if (required && dr.isPermanentlyDenied()) return true;
+        }
+        return false;
+    }
+
+    private void filterOutNonBlockingStorageDenials(List<PermissionDeniedResponse> denied) {
+        if (denied == null) return;
+        Iterator<PermissionDeniedResponse> it = denied.iterator();
+        while (it.hasNext()) {
+            String p = it.next().getPermissionName();
+            boolean isLegacyStorage = p.equals(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+                    || p.equals(android.Manifest.permission.WRITE_EXTERNAL_STORAGE);
+            boolean isMediaRead = p.equals(android.Manifest.permission.READ_MEDIA_IMAGES)
+                    || p.equals(android.Manifest.permission.READ_MEDIA_VIDEO)
+                    || p.equals("android.permission.READ_MEDIA_VISUAL_USER_SELECTED");
+            boolean storageNotRequired = Build.VERSION.SDK_INT > Build.VERSION_CODES.P && !PermissionUtils.NEEDS_GALLERY_READ;
+
+            if ((isLegacyStorage && storageNotRequired) || (isMediaRead && !PermissionUtils.NEEDS_GALLERY_READ)) {
+                it.remove();
+            }
+        }
+    }
+
     private void checkCurrentPermissionStatus() {
-        updatePermissionStatusIcon(
-                ivCameraStatus,
-                isPermissionGranted(android.Manifest.permission.CAMERA)
-        );
+        updatePermissionStatusIcon(ivCameraStatus,
+                isPermissionGranted(android.Manifest.permission.CAMERA));
 
-        updatePermissionStatusIcon(
-                ivLocationStatus,
-                isPermissionGranted(android.Manifest.permission.ACCESS_FINE_LOCATION)
-        );
+        // Green if either coarse OR fine is granted
+        boolean coarse = isPermissionGranted(android.Manifest.permission.ACCESS_COARSE_LOCATION);
+        boolean fine = isPermissionGranted(android.Manifest.permission.ACCESS_FINE_LOCATION);
+        updatePermissionStatusIcon(ivLocationStatus, (coarse || fine));
 
-        updatePermissionStatusIcon(
-                ivPhoneStatus,
-                isPermissionGranted(android.Manifest.permission.READ_PHONE_STATE)
-        );
+        // Phone state not required for this phase; show as granted only if present
+        updatePermissionStatusIcon(ivPhoneStatus,
+                isPermissionGranted(android.Manifest.permission.READ_PHONE_STATE));
 
-        // Storage (legacy ≤ API 28) — show granted on modern since not required
         boolean storageGranted = Build.VERSION.SDK_INT > Build.VERSION_CODES.P
                 || isPermissionGranted(android.Manifest.permission.READ_EXTERNAL_STORAGE);
         updatePermissionStatusIcon(ivStorageStatus, storageGranted);
 
         updateButtonText();
-    }
-
-    private void updatePermissionStatusIndividually() {
-        checkCurrentPermissionStatus();
     }
 
     private boolean isPermissionGranted(String permission) {
@@ -168,16 +210,19 @@ public class PermissionActivity extends AppCompatActivity {
         }
     }
 
+    private void updatePermissionStatusIndividually() {
+        checkCurrentPermissionStatus();
+    }
+
     private void updateAllPermissionStatus(boolean granted) {
         updatePermissionStatusIcon(ivCameraStatus, granted);
         updatePermissionStatusIcon(ivLocationStatus, granted);
-        updatePermissionStatusIcon(ivPhoneStatus, granted);
-        // Storage icon remains informational for modern Android
+        // Phone is optional in this phase; do not gate on it
         updateButtonText();
     }
 
     private void updateButtonText() {
-        boolean allGranted = areAllPermissionsGranted();
+        boolean allGranted = PermissionUtils.hasAllRequiredPermissions(this);
         if (allGranted) {
             btnGrantPermissions.setText("All Permissions Granted ✓");
             btnGrantPermissions.setEnabled(false);
@@ -187,21 +232,14 @@ public class PermissionActivity extends AppCompatActivity {
         }
     }
 
-    // Runtime-aware all-granted using helper (handles SDK differences)
-    private boolean areAllPermissionsGranted() {
-        return PermissionUtils.hasAllRequiredPermissions(this);
-    }
-
     private void showPermissionRationaleDialog(PermissionToken token) {
         new AlertDialog.Builder(this)
                 .setTitle("Permissions Required")
                 .setMessage(
-                        "This app requires the following permissions to function properly:\n\n" +
-                                "• Camera: For attendance verification photos\n" +
-                                "• Location: To verify office location\n" +
-                                "• Phone: For device identification\n" +
-                                "• Storage: To save profile pictures (legacy only)\n\n" +
-                                "Please grant all permissions to continue."
+                        "This app requires:\n\n" +
+                                "• Camera: For attendance photos\n" +
+                                "• Location: Coarse or Fine to verify office location\n\n" +
+                                "Please grant the required permissions to continue."
                 )
                 .setPositiveButton("Grant Permissions", (dialog, which) -> token.continuePermissionRequest())
                 .setNegativeButton("Cancel", (dialog, which) -> {
@@ -209,6 +247,31 @@ public class PermissionActivity extends AppCompatActivity {
                     dialog.dismiss();
                 })
                 .setCancelable(false)
+                .show();
+    }
+
+    private void showPermissionStatusDialog() {
+        StringBuilder status = new StringBuilder();
+        status.append("Permission Status:\n\n");
+
+        boolean camera = isPermissionGranted(android.Manifest.permission.CAMERA);
+        boolean coarse = isPermissionGranted(android.Manifest.permission.ACCESS_COARSE_LOCATION);
+        boolean fine = isPermissionGranted(android.Manifest.permission.ACCESS_FINE_LOCATION);
+
+        status.append("• Camera: ").append(camera ? "✓ Granted" : "✗ Not Granted").append("\n");
+        status.append("• Location: ").append((coarse || fine) ? "✓ Granted" : "✗ Not Granted").append("\n");
+
+        boolean phone = isPermissionGranted(android.Manifest.permission.READ_PHONE_STATE);
+        status.append("• Phone (optional): ").append(phone ? "✓ Granted" : "✗ Not Granted").append("\n");
+
+        boolean storage = Build.VERSION.SDK_INT > Build.VERSION_CODES.P
+                || isPermissionGranted(android.Manifest.permission.READ_EXTERNAL_STORAGE);
+        status.append("• Storage (not required): ").append(storage ? "✓ Granted" : "✗ Not Granted").append("\n");
+
+        new AlertDialog.Builder(this)
+                .setTitle("Permission Status")
+                .setMessage(status.toString())
+                .setPositiveButton("OK", null)
                 .show();
     }
 
@@ -221,24 +284,10 @@ public class PermissionActivity extends AppCompatActivity {
         new AlertDialog.Builder(this)
                 .setTitle("Some Permissions Denied")
                 .setMessage("The following permissions were denied:\n\n" + deniedList +
-                        "\nThese permissions are required for the app to function properly.")
+                        "\nThese are required for the app to function properly.")
                 .setPositiveButton("Retry", (dialog, which) -> requestAllPermissions())
                 .setNegativeButton("Stay Here", null)
                 .setCancelable(false)
-                .show();
-    }
-
-    private void showSettingsDialog() {
-        new AlertDialog.Builder(this)
-                .setTitle("Permission required")
-                .setMessage("Some permissions are permanently denied. Please open Settings and enable them to continue.")
-                .setPositiveButton("Open Settings", (dialog, which) -> {
-                    Intent intent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                    intent.setData(android.net.Uri.fromParts("package", getPackageName(), null));
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    startActivity(intent);
-                })
-                .setNegativeButton("Cancel", null)
                 .show();
     }
 
@@ -251,63 +300,45 @@ public class PermissionActivity extends AppCompatActivity {
                 return "Location";
             case android.Manifest.permission.READ_PHONE_STATE:
                 return "Phone";
-            case android.Manifest.permission.READ_EXTERNAL_STORAGE:
-            case android.Manifest.permission.WRITE_EXTERNAL_STORAGE:
-                return "Storage";
             default:
-                return permission;
+                return "Storage";
         }
     }
 
-    private void showPermissionStatusDialog() {
-        StringBuilder status = new StringBuilder();
-        status.append("Permission Status:\n\n");
-
-        String[][] display = new String[][]{
-                {"Camera", android.Manifest.permission.CAMERA},
-                {"Location", android.Manifest.permission.ACCESS_FINE_LOCATION},
-                {"Phone", android.Manifest.permission.READ_PHONE_STATE},
-        };
-
-        for (String[] item : display) {
-            boolean granted = isPermissionGranted(item[1]);
-            status.append("• ").append(item[0]).append(": ")
-                    .append(granted ? "✓ Granted" : "✗ Not Granted")
-                    .append("\n");
-        }
-
-        boolean storageGranted = Build.VERSION.SDK_INT > Build.VERSION_CODES.P
-                || isPermissionGranted(android.Manifest.permission.READ_EXTERNAL_STORAGE);
-        status.append("• Storage: ").append(storageGranted ? "✓ Granted" : "✗ Not Granted").append("\n");
-
+    private void showSettingsDialog() {
         new AlertDialog.Builder(this)
-                .setTitle("Permission Status")
-                .setMessage(status.toString())
-                .setPositiveButton("OK", null)
-                .show();
-    }
-
-    private void showSkipConfirmationDialog() {
-        new AlertDialog.Builder(this)
-                .setTitle("Skip Permissions?")
-                .setMessage("Warning: Skipping permissions may limit app functionality. Some features may not work properly without required permissions.\n\nAre you sure you want to continue?")
-                .setPositiveButton("Skip Anyway", (dialog, which) -> {
-                    Toast.makeText(this, "Continuing with limited functionality", Toast.LENGTH_LONG).show();
-                    proceedToNextActivity(); // proceed to verification to continue flow
+                .setTitle("Permission required")
+                .setMessage("Some required permissions are permanently denied. Open Settings to enable them.")
+                .setPositiveButton("Open Settings", (dialog, which) -> {
+                    Intent intent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                    intent.setData(android.net.Uri.fromParts("package", getPackageName(), null));
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(intent);
                 })
-                .setNegativeButton("Grant Permissions", (dialog, which) -> requestAllPermissions())
+                .setNegativeButton("Cancel", null)
                 .show();
     }
 
     private void savePermissionGrantedStatus() {
         SharedPreferences.Editor editor = sharedPreferences.edit();
-        editor.putBoolean("permissions_granted", areAllPermissionsGranted());
+        editor.putBoolean("permissions_granted", PermissionUtils.hasAllRequiredPermissions(this));
         editor.putLong("permissions_granted_time", System.currentTimeMillis());
         editor.apply();
     }
 
+    private void showSkipConfirmationDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle("Skip Permissions?")
+                .setMessage("Skipping may limit app functionality. Continue anyway?")
+                .setPositiveButton("Skip Anyway", (dialog, which) -> {
+                    Toast.makeText(this, "Continuing with limited functionality", Toast.LENGTH_LONG).show();
+                    proceedToNextActivity();
+                })
+                .setNegativeButton("Grant Permissions", (dialog, which) -> requestAllPermissions())
+                .show();
+    }
+
     private void proceedToNextActivity() {
-        // Go directly to Mobile Verification after permissions
         Intent intent = new Intent(PermissionActivity.this, MobileVerificationActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
