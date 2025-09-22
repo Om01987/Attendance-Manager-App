@@ -50,17 +50,15 @@ public class SplashActivity extends AppCompatActivity {
 
     private void initFirebase() {
         try {
-            // Initialize Firebase
             FirebaseApp.initializeApp(this);
-
-            // Initialize Firebase services
+            // Access to ensure instances are ready (optional)
             FirebaseAuth auth = FirebaseAuth.getInstance();
             FirebaseFirestore firestore = FirebaseFirestore.getInstance();
 
             Log.d(TAG, "Firebase initialized successfully");
             tvLoading.setText("Firebase connected...");
         } catch (Exception e) {
-            Log.e(TAG, "Firebase initialization failed: " + e.getMessage());
+            Log.e(TAG, "Firebase initialization failed: " + e.getMessage(), e);
             tvLoading.setText("Connection failed");
             Toast.makeText(this, "Firebase connection failed", Toast.LENGTH_SHORT).show();
         }
@@ -68,10 +66,8 @@ public class SplashActivity extends AppCompatActivity {
 
     private void generateDeviceFingerprint() {
         try {
-            // Generate unique device ID
             deviceId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
 
-            // Store device ID
             SharedPreferences.Editor editor = sharedPreferences.edit();
             editor.putString(Constants.PREF_DEVICE_ID, deviceId);
             editor.apply();
@@ -79,7 +75,7 @@ public class SplashActivity extends AppCompatActivity {
             Log.d(TAG, "Device ID generated: " + deviceId);
             tvLoading.setText("Device registered...");
         } catch (Exception e) {
-            Log.e(TAG, "Device fingerprinting failed: " + e.getMessage());
+            Log.e(TAG, "Device fingerprinting failed: " + e.getMessage(), e);
         }
     }
 
@@ -90,11 +86,18 @@ public class SplashActivity extends AppCompatActivity {
     // Updated routing: compute permission status at runtime instead of using a stored flag
     private void checkUserSession() {
         String userId = sharedPreferences.getString(Constants.PREF_USER_ID, null);
-
         boolean permissionsGranted = PermissionUtils.hasAllRequiredPermissions(this);
+        boolean phoneVerified = sharedPreferences.getBoolean("phone_verified", false);
+
         if (!permissionsGranted) {
             tvLoading.setText("Setting up permissions...");
             navigateToPermissions();
+            return;
+        }
+
+        if (!phoneVerified) {
+            tvLoading.setText("Verifying mobile number...");
+            navigateToMobileVerification();
             return;
         }
 
@@ -102,9 +105,23 @@ public class SplashActivity extends AppCompatActivity {
             tvLoading.setText("Welcome back!");
             navigateToDashboard();
         } else {
-            tvLoading.setText("Getting started...");
-            navigateToLogin();
+            tvLoading.setText("Setting up profile...");
+            navigateToEmployeeRegistration();
         }
+    }
+
+    private void navigateToMobileVerification() {
+        Intent intent = new Intent(SplashActivity.this, MobileVerificationActivity.class);
+        startActivity(intent);
+        finish();
+    }
+
+    private void navigateToEmployeeRegistration() {
+        // TODO: Replace MainActivity with actual Employee Registration Activity
+        Intent intent = new Intent(SplashActivity.this, MainActivity.class);
+        intent.putExtra("message", "Employee registration coming soon!");
+        startActivity(intent);
+        finish();
     }
 
     private void navigateToPermissions() {
@@ -114,7 +131,7 @@ public class SplashActivity extends AppCompatActivity {
     }
 
     private void navigateToDashboard() {
-        // TODO: Navigate to Dashboard (will implement later)
+        // TODO: Replace MainActivity with actual Dashboard Activity
         Intent intent = new Intent(SplashActivity.this, MainActivity.class);
         intent.putExtra("message", "Dashboard coming soon!");
         startActivity(intent);
@@ -122,7 +139,7 @@ public class SplashActivity extends AppCompatActivity {
     }
 
     private void navigateToLogin() {
-        // TODO: Navigate to Login Activity (will implement later)
+        // Placeholder for future login screen if needed
         Intent intent = new Intent(SplashActivity.this, MainActivity.class);
         intent.putExtra("message", "Login screen coming soon!");
         startActivity(intent);

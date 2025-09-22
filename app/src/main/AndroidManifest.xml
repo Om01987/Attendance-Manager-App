@@ -67,5 +67,19 @@
         <activity
             android:name=".MainActivity"
             android:exported="false" />
+
+        <!-- Mobile Verification Activity -->
+        <activity
+            android:name=".activities.MobileVerificationActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/Theme.AttendanceManager" />
+
+        <!-- OTP Verification Activity -->
+        <activity
+            android:name=".activities.OtpVerificationActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/Theme.AttendanceManager" />
     </application>
 </manifest>

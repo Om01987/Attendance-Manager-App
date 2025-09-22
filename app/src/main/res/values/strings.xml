@@ -1,6 +1,39 @@
 <resources>
     <string name="app_name">AttendanceManager</string>
-    <string name="splash_loading">Initializing app...</string>
+    <string name="splash_loading">Initializing app…</string>
     <string name="firebase_connected">Firebase connected</string>
     <string name="device_registered">Device registered</string>
+
+    <!-- Mobile Verification -->
+    <string name="mobile_verification_title">Mobile Verification</string>
+    <string name="enter_mobile_number">Enter your mobile number to receive a verification code</string>
+    <string name="mobile_number">Mobile Number</string>
+    <string name="enter_mobile_number_hint">Enter mobile number</string>
+    <string name="send_verification_code">Send Verification Code</string>
+    <string name="complete_number">Complete Number: %s</string>
+    <string name="secure_verification">Secure Verification</string>
+    <string name="verification_info">We\'ll send a 6-digit code to verify your number</string>
+    <string name="terms_privacy">By continuing, you agree to our Terms of Service and Privacy Policy</string>
+
+    <!-- OTP Verification -->
+    <string name="verify_your_number">Verify Your Number</string>
+    <string name="enter_verification_code">Enter the 6-digit code sent to %s</string>
+    <string name="verification_code">Verification Code</string>
+    <string name="verify_code">Verify Code</string>
+    <string name="resend_in">Resend in %ds</string>
+    <string name="resend_otp">Resend OTP</string>
+    <string name="wrong_number">Wrong number? Change it</string>
+    <string name="auto_detection_info">We\'ll automatically detect the code from your SMS</string>
+
+    <!-- Error Messages -->
+    <string name="invalid_phone_number">Please enter a valid phone number</string>
+    <string name="otp_sent_success">Verification code sent successfully</string>
+    <string name="otp_verification_failed">Verification failed. Please try again.</string>
+    <string name="invalid_otp">Please enter a valid 6-digit code</string>
+    <string name="network_error">Network error. Please check your connection.</string>
+    <string name="verification_timeout">Verification timeout. Please try again.</string>
+
+    <!-- Success Messages -->
+    <string name="phone_verified_success">Phone number verified successfully!</string>
+    <string name="proceeding_to_registration">Proceeding to registration…</string>
 </resources>

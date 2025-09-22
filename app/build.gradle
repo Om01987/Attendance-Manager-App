@@ -50,6 +50,15 @@ dependencies {
     implementation libs.firebase.storage
     implementation libs.firebase.messaging
 
+    implementation libs.google.firebase.auth
+    // Country Code Picker (optional but recommended)
+    implementation libs.ccp
+
+    // SMS Retriever API (for auto OTP detection)
+    implementation libs.play.services.auth
+    implementation libs.play.services.auth.api.phone
+
+
     implementation 'com.karumi:dexter:6.2.3'
 
     // Material Design 3
