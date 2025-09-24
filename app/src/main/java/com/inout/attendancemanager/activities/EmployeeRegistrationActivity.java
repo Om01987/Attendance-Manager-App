@@ -368,27 +368,121 @@ public class EmployeeRegistrationActivity extends AppCompatActivity {
     }
 
     private void uploadProfileImage() {
-        String fileName = "profile_images/" + firebaseAuth.getCurrentUser().getUid() +
-                "_" + UUID.randomUUID().toString() + ".jpg";
+        String uid = firebaseAuth.getCurrentUser() != null ? firebaseAuth.getCurrentUser().getUid() : null;
+        if (uid == null) {
+            Log.e(TAG, "No authenticated user; cannot upload image");
+            Toast.makeText(this, "Please re-login before uploading image", Toast.LENGTH_SHORT).show();
+            showProgress(false);
+            return;
+        }
+
+        // Path that matches your rules: profile_images/{userId}/...
+        String fileName = "profile_images/" + uid + "/" + UUID.randomUUID().toString() + ".jpg";
         StorageReference imageRef = storageRef.child(fileName);
 
-        imageRef.putFile(selectedImageUri)
-                .addOnSuccessListener(taskSnapshot -> {
-                    imageRef.getDownloadUrl().addOnSuccessListener(uri -> {
-                        profileImageUrl = uri.toString();
-                        saveEmployeeToFirestore();
-                    }).addOnFailureListener(e -> {
-                        Log.e(TAG, "Failed to get download URL", e);
+        // Always provide JPEG metadata so rules with request.resource.contentType pass
+        com.google.firebase.storage.StorageMetadata metadata =
+                new com.google.firebase.storage.StorageMetadata.Builder()
+                        .setContentType("image/jpeg")
+                        .build();
+
+        try {
+            // Decide: direct upload vs compression, based on content length
+            long approxBytes = queryContentLength(selectedImageUri);
+            boolean needsCompression = approxBytes < 0 || approxBytes > 4_800_000L; // ~4.8 MB threshold
+
+            if (!needsCompression) {
+                // Fast path: direct upload
+                imageRef.putFile(selectedImageUri, metadata)
+                        .addOnSuccessListener(taskSnapshot -> imageRef.getDownloadUrl()
+                                .addOnSuccessListener(uri -> {
+                                    profileImageUrl = uri.toString();
+                                    saveEmployeeToFirestore();
+                                })
+                                .addOnFailureListener(e -> {
+                                    Log.e(TAG, "getDownloadUrl failed", e);
+                                    showProgress(false);
+                                    Toast.makeText(this, "Failed to upload image", Toast.LENGTH_SHORT).show();
+                                }))
+                        .addOnFailureListener(e -> {
+                            Log.e(TAG, "putFile failed", e);
+                            showProgress(false);
+                            Toast.makeText(this, "Failed to upload image", Toast.LENGTH_SHORT).show();
+                        });
+                return;
+            }
+
+            // Compression path: decode → compress JPEG → upload bytes
+            Bitmap bmp = decodeBitmapCompat(selectedImageUri);
+            if (bmp == null) {
+                Log.e(TAG, "Bitmap decode returned null");
+                showProgress(false);
+                Toast.makeText(this, "Failed to process image", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            // Start with 85 quality; you can loop to reduce further if still > 5MB
+            bmp.compress(Bitmap.CompressFormat.JPEG, 85, out);
+            byte[] data = out.toByteArray();
+
+            imageRef.putBytes(data, metadata)
+                    .addOnSuccessListener(t -> imageRef.getDownloadUrl()
+                            .addOnSuccessListener(uri -> {
+                                profileImageUrl = uri.toString();
+                                saveEmployeeToFirestore();
+                            })
+                            .addOnFailureListener(e -> {
+                                Log.e(TAG, "getDownloadUrl failed", e);
+                                showProgress(false);
+                                Toast.makeText(this, "Failed to upload image", Toast.LENGTH_SHORT).show();
+                            }))
+                    .addOnFailureListener(e -> {
+                        Log.e(TAG, "putBytes failed", e);
                         showProgress(false);
                         Toast.makeText(this, "Failed to upload image", Toast.LENGTH_SHORT).show();
                     });
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Failed to upload image", e);
-                    showProgress(false);
-                    Toast.makeText(this, "Failed to upload image", Toast.LENGTH_SHORT).show();
-                });
+        } catch (Exception ex) {
+            Log.e(TAG, "Image handling failed", ex);
+            showProgress(false);
+            Toast.makeText(this, "Failed to process image", Toast.LENGTH_SHORT).show();
+        }
     }
+
+    /**
+     * Return the content length from the ContentResolver if available, else -1.
+     */
+    private long queryContentLength(Uri uri) {
+        try (android.database.Cursor c = getContentResolver().query(
+                uri, new String[]{android.provider.OpenableColumns.SIZE}, null, null, null)) {
+            if (c != null && c.moveToFirst()) {
+                int idx = c.getColumnIndex(android.provider.OpenableColumns.SIZE);
+                if (idx >= 0) {
+                    return c.getLong(idx);
+                }
+            }
+        } catch (Exception ignored) { }
+        return -1L;
+    }
+
+    /**
+     * Decode a bitmap from a content Uri using ImageDecoder on API 28+,
+     * falling back to MediaStore for older devices.
+     */
+    private Bitmap decodeBitmapCompat(Uri uri) throws java.io.IOException {
+        if (android.os.Build.VERSION.SDK_INT >= 28) {
+            android.graphics.ImageDecoder.Source src =
+                    android.graphics.ImageDecoder.createSource(getContentResolver(), uri);
+            // You may downscale here via OnHeaderDecodedListener if desired
+            return android.graphics.ImageDecoder.decodeBitmap(src);
+        } else {
+            @SuppressWarnings("deprecation")
+            Bitmap bmp = MediaStore.Images.Media.getBitmap(getContentResolver(), uri);
+            return bmp;
+        }
+    }
+
+
 
     private void saveEmployeeToFirestore() {
         String userId = firebaseAuth.getCurrentUser().getUid();
@@ -405,7 +499,8 @@ public class EmployeeRegistrationActivity extends AppCompatActivity {
         employee.setEmergencyContactName(etEmergencyContact.getText().toString().trim());
         employee.setEmergencyContactPhone(etEmergencyPhone.getText().toString().trim());
         employee.setProfileImageUrl(profileImageUrl);
-        employee.setPhoneNumber(sharedPreferences.getString("verified_phone", ""));
+        // Keep using the stored verified phone and device id
+        employee.setPhoneNumber(sharedPreferences.getString(Constants.PREF_PHONE_NUMBER, ""));
         employee.setDeviceId(sharedPreferences.getString(Constants.PREF_DEVICE_ID, ""));
         employee.setRegistrationDate(new Date());
         employee.setIsActive(true);
@@ -418,13 +513,15 @@ public class EmployeeRegistrationActivity extends AppCompatActivity {
                 .addOnSuccessListener(aVoid -> {
                     Log.d(TAG, "Employee profile saved successfully");
 
-                    // Save to SharedPreferences
+                    // Mark profile as completed ONLY after Firestore write succeeds
                     SharedPreferences.Editor editor = sharedPreferences.edit();
                     editor.putString(Constants.PREF_USER_ID, userId);
+                    editor.putBoolean(Constants.PREF_PROFILE_COMPLETED, true);   // canonical flag
+                    editor.putBoolean("profile_completed", true);                // legacy flag (back-compat)
+                    // Optional persisted fields used elsewhere in the app
                     editor.putString("employee_id", employee.getEmployeeId());
                     editor.putString("full_name", employee.getFullName());
                     editor.putString("department", employee.getDepartment());
-                    editor.putBoolean("profile_completed", true);
                     editor.apply();
 
                     showProgress(false);
@@ -434,8 +531,7 @@ public class EmployeeRegistrationActivity extends AppCompatActivity {
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Failed to save employee profile", e);
                     showProgress(false);
-                    Toast.makeText(this, "Failed to save profile. Please try again.",
-                            Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, "Failed to save profile. Please try again.", Toast.LENGTH_LONG).show();
                 });
     }
 

@@ -273,24 +273,22 @@ public class OtpVerificationActivity extends AppCompatActivity {
     }
 
     private void saveUserData() {
-        if (firebaseAuth.getCurrentUser() != null) {
-            SharedPreferences.Editor editor = sharedPreferences.edit();
-            editor.putString(Constants.PREF_USER_ID, firebaseAuth.getCurrentUser().getUid());
-            editor.putString(Constants.PREF_PHONE_NUMBER, phoneNumber);
-            editor.putBoolean("phone_verified", true);
-            editor.putLong("verification_time", System.currentTimeMillis());
-            editor.apply();
-        }
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        // Do NOT set PREF_USER_ID here; wait until registration is saved
+        editor.putString(Constants.PREF_PHONE_NUMBER, phoneNumber);
+        editor.putBoolean("phone_verified", true);
+        editor.putLong("verification_time", System.currentTimeMillis());
+        editor.apply();
     }
 
+
     private void navigateToNextActivity() {
-        // TODO: Navigate to Employee Registration Activity (will implement later)
-        Intent intent = new Intent(OtpVerificationActivity.this, MainActivity.class);
-        intent.putExtra("message", "Phone verified successfully!\\nEmployee registration coming soon...");
+        Intent intent = new Intent(OtpVerificationActivity.this, EmployeeRegistrationActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
     }
+
 
     private void startResendTimer() {
         tvResendOtp.setVisibility(View.GONE);

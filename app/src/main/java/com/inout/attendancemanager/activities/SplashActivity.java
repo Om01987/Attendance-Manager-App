@@ -85,9 +85,13 @@ public class SplashActivity extends AppCompatActivity {
 
     // Updated routing: compute permission status at runtime instead of using a stored flag
     private void checkUserSession() {
-        String userId = sharedPreferences.getString(Constants.PREF_USER_ID, null);
         boolean permissionsGranted = PermissionUtils.hasAllRequiredPermissions(this);
-        boolean phoneVerified = sharedPreferences.getBoolean("phone_verified", false);
+        boolean phoneVerified = getSharedPreferences(Constants.PREF_NAME, MODE_PRIVATE)
+                .getBoolean("phone_verified", false);
+        boolean profileCompleted = getSharedPreferences(Constants.PREF_NAME, MODE_PRIVATE)
+                .getBoolean(Constants.PREF_PROFILE_COMPLETED, false);
+        String userId = getSharedPreferences(Constants.PREF_NAME, MODE_PRIVATE)
+                .getString(Constants.PREF_USER_ID, null);
 
         if (!permissionsGranted) {
             tvLoading.setText("Setting up permissions...");
@@ -101,6 +105,12 @@ public class SplashActivity extends AppCompatActivity {
             return;
         }
 
+        if (!profileCompleted) {
+            tvLoading.setText("Setting up profile...");
+            navigateToEmployeeRegistration();
+            return;
+        }
+
         if (userId != null && !userId.isEmpty()) {
             tvLoading.setText("Welcome back!");
             navigateToDashboard();
@@ -109,6 +119,7 @@ public class SplashActivity extends AppCompatActivity {
             navigateToEmployeeRegistration();
         }
     }
+
 
     private void navigateToMobileVerification() {
         Intent intent = new Intent(SplashActivity.this, MobileVerificationActivity.class);
