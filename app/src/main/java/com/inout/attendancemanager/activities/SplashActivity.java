@@ -116,13 +116,6 @@ public class SplashActivity extends AppCompatActivity {
         finish();
     }
 
-    private void navigateToEmployeeRegistration() {
-        // TODO: Replace MainActivity with actual Employee Registration Activity
-        Intent intent = new Intent(SplashActivity.this, MainActivity.class);
-        intent.putExtra("message", "Employee registration coming soon!");
-        startActivity(intent);
-        finish();
-    }
 
     private void navigateToPermissions() {
         Intent intent = new Intent(SplashActivity.this, PermissionActivity.class);
@@ -142,6 +135,12 @@ public class SplashActivity extends AppCompatActivity {
         // Placeholder for future login screen if needed
         Intent intent = new Intent(SplashActivity.this, MainActivity.class);
         intent.putExtra("message", "Login screen coming soon!");
+        startActivity(intent);
+        finish();
+    }
+
+    private void navigateToEmployeeRegistration() {
+        Intent intent = new Intent(SplashActivity.this, EmployeeRegistrationActivity.class);
         startActivity(intent);
         finish();
     }
