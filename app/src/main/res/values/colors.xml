@@ -1,28 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Existing brand colors -->
-    <color name="md_theme_light_primary">#1976D2</color>
-    <color name="md_theme_light_onPrimary">#FFFFFF</color>
-    <color name="md_theme_light_primaryContainer">#BBDEFB</color>
-    <color name="md_theme_light_onPrimaryContainer">#0D47A1</color>
-    <color name="md_theme_light_secondary">#388E3C</color>
-    <color name="md_theme_light_onSecondary">#FFFFFF</color>
-    <color name="md_theme_light_secondaryContainer">#C8E6C9</color>
-    <color name="md_theme_light_onSecondaryContainer">#1B5E20</color>
-
-    <!-- Add missing Material 3 surface roles -->
-    <color name="md_theme_light_surface">#FFFFFF</color>
-    <color name="md_theme_light_onSurface">#1C1B1F</color>
-    <color name="md_theme_light_surfaceVariant">#E7E0EC</color>
-    <color name="md_theme_light_onSurfaceVariant">#49454F</color>
 
     <!-- Optional, commonly used roles -->
     <color name="md_theme_light_background">#FFFBFE</color>
     <color name="md_theme_light_onBackground">#1C1B1F</color>
-    <color name="md_theme_light_outline">#79747E</color>
     <color name="md_theme_light_outlineVariant">#CAC4D0</color>
     <color name="md_theme_light_surfaceContainer">#F3EDF7</color>
-    <color name="md_theme_light_surfaceContainerHigh">#ECE6F0</color>
 
     <!-- Custom app colors -->
     <color name="success_green">#4CAF50</color>
@@ -30,4 +13,62 @@
     <color name="error_red">#F44336</color>
     <color name="background_light">#FAFAFA</color>
     <color name="surface_variant">#F5F5F5</color>
+
+    <!-- Card Colors -->
+    <color name="card_present">#4CAF50</color>
+    <color name="card_absent">#F44336</color>
+    <color name="card_weekoff">#9C27B0</color>
+    <color name="card_missed">#FF9800</color>
+
+    <color name="card_total_leaves">#2196F3</color>
+    <color name="card_used_leaves">#FF5722</color>
+    <color name="card_remaining_leaves">#009688</color>
+
+
+    <!-- Primary brand color -->
+    <color name="md_theme_light_primary">#6750A4</color>
+    <color name="md_theme_light_onPrimary">#FFFFFF</color>
+    <color name="md_theme_light_primaryContainer">#EADDFF</color>
+    <color name="md_theme_light_onPrimaryContainer">#21005D</color>
+
+    <!-- Secondary colors -->
+    <color name="md_theme_light_secondary">#625B71</color>
+    <color name="md_theme_light_onSecondary">#FFFFFF</color>
+    <color name="md_theme_light_secondaryContainer">#E8DEF8</color>
+    <color name="md_theme_light_onSecondaryContainer">#1D192B</color>
+
+    <!-- Surface colors -->
+    <color name="md_theme_light_surface">#FFFBFE</color>
+    <color name="md_theme_light_onSurface">#1C1B1F</color>
+    <color name="md_theme_light_surfaceVariant">#E7E0EC</color>
+    <color name="md_theme_light_onSurfaceVariant">#49454F</color>
+    <color name="md_theme_light_surfaceContainerHigh">#ECE6F0</color>
+
+    <!-- Outline -->
+    <color name="md_theme_light_outline">#79747E</color>
+
+    <!-- Error colors -->
+    <color name="md_theme_light_error">#B3261E</color>
+    <color name="md_theme_light_onError">#FFFFFF</color>
+    <color name="md_theme_light_errorContainer">#F9DEDC</color>
+    <color name="md_theme_light_onErrorContainer">#410E0B</color>
+
+    <!-- Attendance Status Colors -->
+    <color name="status_present">#4CAF50</color>
+    <color name="status_absent">#F44336</color>
+    <color name="status_weekoff">#FF9800</color>
+    <color name="status_pending">#FFC107</color>
+    <color name="status_rejected">#F44336</color>
+    <color name="status_approved">#4CAF50</color>
+
+    <!-- Gradient colors -->
+    <color name="gradient_start">#667eea</color>
+    <color name="gradient_end">#764ba2</color>
+
+    <!-- Card background -->
+    <color name="card_background">#FFFFFF</color>
+    <color name="card_background_secondary">#F8F9FA</color>
+
+    <!-- Shadow -->
+    <color name="shadow_color">#1A000000</color>
 </resources>

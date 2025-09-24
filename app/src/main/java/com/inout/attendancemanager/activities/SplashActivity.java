@@ -51,7 +51,6 @@ public class SplashActivity extends AppCompatActivity {
     private void initFirebase() {
         try {
             FirebaseApp.initializeApp(this);
-            // Access to ensure instances are ready (optional)
             FirebaseAuth auth = FirebaseAuth.getInstance();
             FirebaseFirestore firestore = FirebaseFirestore.getInstance();
 
@@ -67,7 +66,6 @@ public class SplashActivity extends AppCompatActivity {
     private void generateDeviceFingerprint() {
         try {
             deviceId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
-
             SharedPreferences.Editor editor = sharedPreferences.edit();
             editor.putString(Constants.PREF_DEVICE_ID, deviceId);
             editor.apply();
@@ -83,76 +81,87 @@ public class SplashActivity extends AppCompatActivity {
         new Handler(Looper.getMainLooper()).postDelayed(this::checkUserSession, SPLASH_DELAY);
     }
 
-    // Updated routing: compute permission status at runtime instead of using a stored flag
     private void checkUserSession() {
-        boolean permissionsGranted = PermissionUtils.hasAllRequiredPermissions(this);
-        boolean phoneVerified = getSharedPreferences(Constants.PREF_NAME, MODE_PRIVATE)
-                .getBoolean("phone_verified", false);
-        boolean profileCompleted = getSharedPreferences(Constants.PREF_NAME, MODE_PRIVATE)
-                .getBoolean(Constants.PREF_PROFILE_COMPLETED, false);
-        String userId = getSharedPreferences(Constants.PREF_NAME, MODE_PRIVATE)
-                .getString(Constants.PREF_USER_ID, null);
+        SharedPreferences prefs = getSharedPreferences(Constants.PREF_NAME, MODE_PRIVATE);
+        boolean perms = PermissionUtils.hasAllRequiredPermissions(this);
+        boolean phoneVerified = prefs.getBoolean(Constants.PREF_PHONE_VERIFIED, false);
+        String userId = prefs.getString(Constants.PREF_USER_ID, null);
 
-        if (!permissionsGranted) {
-            tvLoading.setText("Setting up permissions...");
-            navigateToPermissions();
-            return;
-        }
+        if (!perms) { navigateToPermissions(); return; }
+        if (!phoneVerified) { navigateToMobileVerification(); return; }
 
-        if (!phoneVerified) {
-            tvLoading.setText("Verifying mobile number...");
-            navigateToMobileVerification();
-            return;
+        // Resolve UID once and keep it effectively final for lambdas
+        String uid = userId;
+        if (uid == null || uid.isEmpty()) {
+            if (FirebaseAuth.getInstance().getCurrentUser() != null) {
+                uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+            } else {
+                navigateToMobileVerification();
+                return;
+            }
         }
+        final String finalUid = uid; // effectively final for lambda capture [OK]
 
-        if (!profileCompleted) {
-            tvLoading.setText("Setting up profile...");
-            navigateToEmployeeRegistration();
-            return;
-        }
+        FirebaseFirestore.getInstance()
+                .collection(Constants.COLLECTION_EMPLOYEES)
+                .document(finalUid)
+                .get()
+                .addOnSuccessListener(doc -> {
+                    if (doc != null && doc.exists()) {
+                        // Persist canonical state for future launches
+                        SharedPreferences.Editor ed = prefs.edit();
+                        ed.putString(Constants.PREF_USER_ID, finalUid);
+                        ed.putBoolean(Constants.PREF_PROFILE_COMPLETED, true);
+                        ed.apply();
 
-        if (userId != null && !userId.isEmpty()) {
-            tvLoading.setText("Welcome back!");
-            navigateToDashboard();
-        } else {
-            tvLoading.setText("Setting up profile...");
-            navigateToEmployeeRegistration();
-        }
+                        String status = doc.getString("approvalStatus");
+                        if ("approved".equals(status)) {
+                            navigateToDashboard();
+                        } else if ("pending".equals(status) || status == null) {
+                            navigateToPendingApproval();
+                        } else {
+                            // rejected or unknown → registration to correct profile
+                            navigateToEmployeeRegistration();
+                        }
+                    } else {
+                        // No profile yet
+                        navigateToEmployeeRegistration();
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    // Network/read error: avoid dead-end; show pending screen
+                    navigateToPendingApproval();
+                });
     }
-
 
     private void navigateToMobileVerification() {
-        Intent intent = new Intent(SplashActivity.this, MobileVerificationActivity.class);
-        startActivity(intent);
-        finish();
+        Intent i = new Intent(this, MobileVerificationActivity.class);
+        i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(i); finish();
     }
 
-
     private void navigateToPermissions() {
-        Intent intent = new Intent(SplashActivity.this, PermissionActivity.class);
-        startActivity(intent);
-        finish();
+        Intent i = new Intent(this, PermissionActivity.class);
+        i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(i); finish();
     }
 
     private void navigateToDashboard() {
-        // TODO: Replace MainActivity with actual Dashboard Activity
-        Intent intent = new Intent(SplashActivity.this, MainActivity.class);
-        intent.putExtra("message", "Dashboard coming soon!");
-        startActivity(intent);
-        finish();
-    }
-
-    private void navigateToLogin() {
-        // Placeholder for future login screen if needed
-        Intent intent = new Intent(SplashActivity.this, MainActivity.class);
-        intent.putExtra("message", "Login screen coming soon!");
-        startActivity(intent);
+        Intent i = new Intent(this, DashboardActivity.class);
+        i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(i);
         finish();
     }
 
     private void navigateToEmployeeRegistration() {
-        Intent intent = new Intent(SplashActivity.this, EmployeeRegistrationActivity.class);
-        startActivity(intent);
-        finish();
+        Intent i = new Intent(this, EmployeeRegistrationActivity.class);
+        i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(i); finish();
+    }
+
+    private void navigateToPendingApproval() {
+        Intent i = new Intent(this, PendingApprovalActivity.class);
+        i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(i); finish();
     }
 }

@@ -1,5 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
+
+    <!-- App -->
     <string name="app_name">AttendanceManager</string>
+
+    <!-- Splash/Init -->
     <string name="splash_loading">Initializing app…</string>
     <string name="firebase_connected">Firebase connected</string>
     <string name="device_registered">Device registered</string>
@@ -12,7 +17,7 @@
     <string name="send_verification_code">Send Verification Code</string>
     <string name="complete_number">Complete Number: %s</string>
     <string name="secure_verification">Secure Verification</string>
-    <string name="verification_info">We\'ll send a 6-digit code to verify your number</string>
+    <string name="verification_info">We&apos;ll send a 6-digit code to verify your number</string>
     <string name="terms_privacy">By continuing, you agree to our Terms of Service and Privacy Policy</string>
 
     <!-- OTP Verification -->
@@ -23,17 +28,73 @@
     <string name="resend_in">Resend in %ds</string>
     <string name="resend_otp">Resend OTP</string>
     <string name="wrong_number">Wrong number? Change it</string>
-    <string name="auto_detection_info">We\'ll automatically detect the code from your SMS</string>
+    <string name="auto_detection_info">We&apos;ll automatically detect the code from your SMS</string>
 
-    <!-- Error Messages -->
+    <!-- Errors & Success -->
     <string name="invalid_phone_number">Please enter a valid phone number</string>
     <string name="otp_sent_success">Verification code sent successfully</string>
     <string name="otp_verification_failed">Verification failed. Please try again.</string>
     <string name="invalid_otp">Please enter a valid 6-digit code</string>
     <string name="network_error">Network error. Please check your connection.</string>
     <string name="verification_timeout">Verification timeout. Please try again.</string>
-
-    <!-- Success Messages -->
     <string name="phone_verified_success">Phone number verified successfully!</string>
     <string name="proceeding_to_registration">Proceeding to registration…</string>
+
+    <!-- Dashboard Core -->
+    <string name="dashboard_title">Dashboard</string>
+    <string name="attendance_title">Attendance</string>
+    <string name="leave_title">Leave</string>
+    <string name="punch_in">Punch In</string>
+    <string name="punch_out">Punch Out</string>
+    <string name="working_hours">Working Hours</string>
+    <string name="countdown_timer">Countdown</string>
+
+    <!-- Status Labels -->
+    <string name="approved">Approved</string>
+    <string name="pending">Pending</string>
+    <string name="rejected">Rejected</string>
+    <string name="status_on_duty">On Duty</string>
+    <string name="status_not_started">Not Started</string>
+    <string name="status_day_complete">Day Complete</string>
+    <string name="status_day_ended">Day Ended</string>
+    <string name="approval_pending">Approval Pending</string>
+
+    <!-- Attendance Summary -->
+    <string name="present">Present</string>
+    <string name="absent">Absent</string>
+    <string name="weekoff">Week Off</string>
+    <string name="missed">Missed</string>
+    <string name="section_this_month">This Month</string>
+
+    <!-- Leave Summary -->
+    <string name="total_leaves">Total</string>
+    <string name="used_leaves">Used</string>
+    <string name="remaining_leaves">Remaining</string>
+    <string name="requested_leaves">Requested</string>
+    <string name="section_leave_balance">Leave Balance</string>
+
+    <!-- Quick Links -->
+    <string name="announcements">Announcements</string>
+    <string name="holidays">Holidays</string>
+    <string name="salary_slip">Salary Slip</string>
+    <string name="reports">Reports</string>
+    <string name="section_quick_links">Quick Links</string>
+
+    <!-- Permissions & Runtime Messages -->
+    <string name="location_permission_required">Location permission required for punch</string>
+    <string name="punch_failed">Punch operation failed</string>
+    <string name="processing">Processing…</string>
+    <string name="punched_in_success">Punched In Successfully</string>
+    <string name="punched_out_success">Punched Out Successfully</string>
+
+    <!-- Loading/Failures (Dashboard fetches) -->
+    <string name="failed_load_profile">Failed to load profile</string>
+    <string name="failed_load_summary">Failed to load summary</string>
+    <string name="failed_punch_in">Failed to punch in. Please try again.</string>
+    <string name="failed_punch_out">Failed to punch out. Please try again.</string>
+
+    <!-- Time/Date Formats -->
+    <string name="time_format_display">hh:mm a</string>
+    <string name="date_format_display">dd MMM yyyy</string>
+
 </resources>

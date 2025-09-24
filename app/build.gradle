@@ -71,6 +71,11 @@ dependencies {
     implementation libs.google.firebase.storage
     implementation libs.google.firebase.messaging
 
+    // Firebase App Check (Play Integrity)
+    implementation 'com.google.firebase:firebase-appcheck'
+    implementation 'com.google.firebase:firebase-appcheck-playintegrity'
+
+
     // ==================== GOOGLE PLAY SERVICES ====================
 
     // Authentication & Phone

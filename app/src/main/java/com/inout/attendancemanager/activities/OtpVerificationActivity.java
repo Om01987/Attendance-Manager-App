@@ -21,6 +21,7 @@ import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.PhoneAuthCredential;
 import com.google.firebase.auth.PhoneAuthProvider;
+import com.google.firebase.firestore.FirebaseFirestore;
 import com.inout.attendancemanager.MainActivity;
 import com.inout.attendancemanager.R;
 import com.inout.attendancemanager.utils.Constants;
@@ -223,34 +224,63 @@ public class OtpVerificationActivity extends AppCompatActivity {
     private void signInWithPhoneAuthCredential(PhoneAuthCredential credential) {
         firebaseAuth.signInWithCredential(credential)
                 .addOnCompleteListener(this, task -> {
-                    setLoadingState(false);
+                    // Always reset UI
+                    setLoadingState(false); // [36]
 
                     if (task.isSuccessful()) {
-                        Log.d(TAG, "signInWithCredential:success");
+                        // Persist local auth state
+                        saveUserData(); // sets phone_verified, etc. [36]
 
-                        // Save user data
-                        saveUserData();
+                        String uid = (firebaseAuth.getCurrentUser() != null)
+                                ? firebaseAuth.getCurrentUser().getUid()
+                                : null;
 
-                        Toast.makeText(this, getString(R.string.phone_verified_success),
-                                Toast.LENGTH_SHORT).show();
-
-                        // Navigate to next activity
-                        navigateToNextActivity();
-                    } else {
-                        Log.w(TAG, "signInWithCredential:failure", task.getException());
-
-                        // Clear OTP inputs
-                        clearOtpInputs();
-
-                        String errorMessage = getString(R.string.otp_verification_failed);
-                        if (task.getException() != null) {
-                            errorMessage += "\\n" + task.getException().getMessage();
+                        if (uid == null) {
+                            // Fallback to Splash to re-evaluate routing
+                            startActivity(new Intent(OtpVerificationActivity.this, SplashActivity.class)
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK)); // [669]
+                            finish();
+                            return;
                         }
 
-                        showErrorDialog("Verification Failed", errorMessage);
+                        // Check if employee profile already exists
+                        FirebaseFirestore.getInstance()
+                                .collection("employees")
+                                .document(uid)
+                                .get()
+                                .addOnSuccessListener(doc -> {
+                                    if (doc.exists()) {
+                                        // Existing user: defer to Splash (it will route approved → Dashboard, pending → PendingApproval)
+                                        startActivity(new Intent(OtpVerificationActivity.this, SplashActivity.class)
+                                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK)); // [678][669]
+                                    } else {
+                                        // New or incomplete: proceed to registration
+                                        startActivity(new Intent(OtpVerificationActivity.this, EmployeeRegistrationActivity.class)
+                                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK)); // [678][669]
+                                    }
+                                    finish();
+                                })
+                                .addOnFailureListener(e -> {
+                                    // Network/read error: defer to Splash to decide
+                                    startActivity(new Intent(OtpVerificationActivity.this, SplashActivity.class)
+                                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK)); // [678][669]
+                                    finish();
+                                });
+
+                    } else {
+                        // Verification failed: reset inputs and show error
+                        Log.w(TAG, "signInWithCredential:failure", task.getException()); // [36]
+                        clearOtpInputs(); // [36]
+                        String errorMessage = getString(R.string.otp_verification_failed);
+                        if (task.getException() != null) {
+                            errorMessage += "\n" + task.getException().getMessage();
+                        }
+                        showErrorDialog("Verification Failed", errorMessage); // [36]
                     }
                 });
     }
+
+
 
     private void resendOtp() {
         // TODO: Implement resend OTP functionality
@@ -274,12 +304,15 @@ public class OtpVerificationActivity extends AppCompatActivity {
 
     private void saveUserData() {
         SharedPreferences.Editor editor = sharedPreferences.edit();
-        // Do NOT set PREF_USER_ID here; wait until registration is saved
+        if (firebaseAuth.getCurrentUser() != null) {
+            editor.putString(Constants.PREF_USER_ID, firebaseAuth.getCurrentUser().getUid());
+        }
         editor.putString(Constants.PREF_PHONE_NUMBER, phoneNumber);
-        editor.putBoolean("phone_verified", true);
-        editor.putLong("verification_time", System.currentTimeMillis());
+        editor.putBoolean(Constants.PREF_PHONE_VERIFIED, true);
+        editor.putLong(Constants.PREF_VERIFICATION_TIME, System.currentTimeMillis());
         editor.apply();
     }
+
 
 
     private void navigateToNextActivity() {

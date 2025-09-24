@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:background="?attr/colorSurface">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:padding="32dp"
+        android:minHeight="600dp">
+
+        <!-- Pending Icon -->
+        <ImageView
+            android:id="@+id/iv_pending_icon"
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:src="@drawable/ic_pending"
+            android:layout_marginBottom="24dp"
+            app:tint="?attr/colorPrimary" />
+
+        <!-- Title -->
+        <TextView
+            android:id="@+id/tv_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Awaiting Approval"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:textColor="?attr/colorOnSurface"
+            android:layout_marginBottom="16dp"
+            android:textAlignment="center" />
+
+        <!-- Main Message -->
+        <TextView
+            android:id="@+id/tv_message"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Your profile has been submitted and is pending approval from the administrator. You will be notified once it's reviewed."
+            android:textSize="16sp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textAlignment="center"
+            android:lineSpacingExtra="4dp"
+            android:layout_marginBottom="32dp" />
+
+        <!-- Employee Info Card -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="32dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="2dp"
+            app:strokeWidth="1dp"
+            app:strokeColor="?attr/colorOutline">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp"
+                android:gravity="center">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Submitted Profile"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="?attr/colorPrimary"
+                    android:layout_marginBottom="12dp" />
+
+                <TextView
+                    android:id="@+id/tv_employee_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Welcome, Employee"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="?attr/colorOnSurface"
+                    android:layout_marginBottom="4dp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/tv_employee_id"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="ID: EMP001"
+                    android:textSize="14sp"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:layout_marginBottom="8dp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/tv_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Status: Under Review"
+                    android:textSize="14sp"
+                    android:textColor="?attr/colorPrimary"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Action Buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_check_status"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="Check Status"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                app:icon="@drawable/ic_refresh"
+                app:iconGravity="textStart"
+                app:cornerRadius="28dp"
+                android:layout_marginBottom="16dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_logout"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="Logout"
+                android:textSize="14sp"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                app:icon="@drawable/ic_logout"
+                app:iconGravity="textStart"
+                app:cornerRadius="24dp" />
+
+        </LinearLayout>
+
+        <!-- Help Section -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="0dp"
+            app:cardBackgroundColor="?attr/colorSurfaceContainerHigh">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="16dp"
+                android:gravity="center_vertical">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_info"
+                    app:tint="?attr/colorPrimary"
+                    android:layout_marginEnd="12dp" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Need Help?"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="?attr/colorOnSurface" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Contact your HR department for any queries regarding approval status"
+                        android:textSize="12sp"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:layout_marginTop="2dp" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </LinearLayout>
+
+</ScrollView>

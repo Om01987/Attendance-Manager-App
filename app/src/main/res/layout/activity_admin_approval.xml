@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- res/layout/activity_admin_approval.xml -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Top app bar -->
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/topAppBar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorSurface"
+        app:title="Pending Approvals"
+        app:titleCentered="true"
+        app:titleTextColor="?attr/colorOnSurface"
+        app:navigationIconTint="?attr/colorOnSurface" />
+
+    <!-- Empty state message -->
+    <TextView
+        android:id="@+id/tv_empty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="No pending employee approvals"
+        android:textAlignment="center"
+        android:textSize="16sp"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:padding="24dp"
+        android:visibility="gone" />
+
+    <!-- RecyclerView list -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_employees"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:clipToPadding="false"
+        android:layout_weight="1"
+        android:scrollbars="vertical" />
+
+</LinearLayout>

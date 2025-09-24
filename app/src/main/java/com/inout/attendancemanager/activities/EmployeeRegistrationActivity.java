@@ -623,9 +623,16 @@ public class EmployeeRegistrationActivity extends AppCompatActivity {
         new AlertDialog.Builder(this)
                 .setTitle("Profile Submitted Successfully!")
                 .setMessage("Your profile has been submitted for approval. You will be notified once it's approved.")
-                .setPositiveButton("Continue", (dialog, which) -> navigateToDashboard())
+                .setPositiveButton("Continue", (d, w) -> navigateToPendingApproval())
                 .setCancelable(false)
-                .show();
+                .show(); // [594]
+    }
+
+    private void navigateToPendingApproval() {
+        Intent i = new Intent(this, PendingApprovalActivity.class);
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(i);
+        finish(); // [594]
     }
 
     private void navigateToDashboard() {
