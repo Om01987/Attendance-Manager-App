@@ -196,15 +196,4 @@ dependencies {
 // Ensure all Firebase services are properly configured
 apply plugin: 'com.google.gms.google-services'
 
-// Optional: Configure ProGuard/R8 rules for release builds
-android {
-    buildTypes {
-        release {
-            minifyEnabled true
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 
-            // Optional: Configure signing for release builds
-            // signingConfig signingConfigs.release
-        }
-    }
-}
