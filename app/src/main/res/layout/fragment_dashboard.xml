@@ -6,10 +6,13 @@
     android:fillViewport="true"
     android:background="?attr/colorSurface">
 
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical">
+
+
 
         <!-- Header with Gradient -->
         <LinearLayout
@@ -19,6 +22,7 @@
             android:background="@drawable/gradient_header_background"
             android:padding="24dp">
 
+            <!-- Profile Row -->
             <!-- Profile Row -->
             <LinearLayout
                 android:layout_width="match_parent"
@@ -72,16 +76,42 @@
 
                 </LinearLayout>
 
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chip_approval_status"
+                <!-- Right side: status + logout in a vertical column -->
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="✓ Approved"
-                    android:textColor="@android:color/white"
-                    android:textSize="12sp"
-                    app:chipBackgroundColor="@color/status_approved" />
+                    android:orientation="vertical"
+                    android:gravity="center_horizontal">
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chip_approval_status"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="✓ Approved"
+                        android:textColor="@android:color/white"
+                        android:textSize="12sp"
+                        app:chipBackgroundColor="@color/status_approved" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_logout"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="36dp"
+                        android:text="Logout"
+                        android:textAllCaps="false"
+                        android:textColor="@android:color/white"
+                        android:layout_marginTop="8dp"
+                        app:icon="@drawable/ic_logout"
+                        app:iconTint="@android:color/white"
+                        app:iconPadding="8dp"
+                        app:cornerRadius="20dp"
+                        app:strokeWidth="1dp"
+                        app:strokeColor="@android:color/white"/>
+
+                </LinearLayout>
 
             </LinearLayout>
+
 
             <TextView
                 android:id="@+id/tv_current_date"

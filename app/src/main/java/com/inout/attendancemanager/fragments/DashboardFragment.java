@@ -164,6 +164,27 @@ public class DashboardFragment extends Fragment {
                 Toast.makeText(getContext(), "No attendance yet.", Toast.LENGTH_SHORT).show();
             }
         });
+
+        View btnLogout = view.findViewById(R.id.btn_logout);
+        btnLogout.setOnClickListener(v -> {
+            new com.google.android.material.dialog.MaterialAlertDialogBuilder(
+                    new android.view.ContextThemeWrapper(requireContext(), R.style.ThemeOverlay_Attendance_AlertDialog)
+            )
+                    .setTitle("Logout")
+                    .setMessage("Are you sure you want to logout?")
+                    .setIcon(R.drawable.ic_logout)
+                    .setPositiveButton("Yes, logout", (dialog, which) -> {
+                        try {
+                            com.google.firebase.auth.FirebaseAuth.getInstance().signOut();
+                        } catch (Exception ignored) {}
+                        android.content.Intent intent = new android.content.Intent(requireContext(), com.inout.attendancemanager.activities.SplashActivity.class);
+                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK | android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                        startActivity(intent);
+                        requireActivity().finish();
+                    })
+                    .setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss())
+                    .show();
+        });
     }
 
     private void setupInitialUI() {
@@ -340,6 +361,16 @@ public class DashboardFragment extends Fragment {
                 .addOnSuccessListener(location -> {
                     // Geofence: 500 m radius around office
                     if (currentEmployee != null) {
+
+                        // Guard: ensure office coordinates are set
+                        if (currentEmployee.getOfficeLat() == 0.0 || currentEmployee.getOfficeLng() == 0.0) {
+                            Toast.makeText(getContext(),
+                                    "Office location not set. Contact admin to set officeLat/officeLng.",
+                                    Toast.LENGTH_LONG).show();
+                            resetPunchButton();
+                            return;
+                        }
+
                         double oLat = currentEmployee.getOfficeLat();
                         double oLng = currentEmployee.getOfficeLng();
 
@@ -365,6 +396,7 @@ public class DashboardFragment extends Fragment {
                         }
                     }
 
+                    // Inside geofence: proceed
                     if (isPunchedIn) {
                         punchOut(location);
                     } else {
@@ -379,6 +411,7 @@ public class DashboardFragment extends Fragment {
                     resetPunchButton();
                 });
     }
+
 
     private void resetPunchButton() {
         btnPunchAction.setEnabled(true);
