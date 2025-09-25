@@ -354,63 +354,26 @@ public class DashboardFragment extends Fragment {
             return;
         }
 
-        btnPunchAction.setEnabled(false);
-        btnPunchAction.setText("Processing...");
+        if (currentEmployee == null
+                || currentEmployee.getOfficeLat() == 0.0
+                || currentEmployee.getOfficeLng() == 0.0) {
+            Toast.makeText(getContext(),
+                    "Office location not set. Contact admin to set officeLat/officeLng.",
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
 
-        fusedLocationClient.getLastLocation()
-                .addOnSuccessListener(location -> {
-                    // Geofence: 500 m radius around office
-                    if (currentEmployee != null) {
-
-                        // Guard: ensure office coordinates are set
-                        if (currentEmployee.getOfficeLat() == 0.0 || currentEmployee.getOfficeLng() == 0.0) {
-                            Toast.makeText(getContext(),
-                                    "Office location not set. Contact admin to set officeLat/officeLng.",
-                                    Toast.LENGTH_LONG).show();
-                            resetPunchButton();
-                            return;
-                        }
-
-                        double oLat = currentEmployee.getOfficeLat();
-                        double oLng = currentEmployee.getOfficeLng();
-
-                        if (location == null) {
-                            Toast.makeText(getContext(),
-                                    "Location unavailable. Try again near a window.",
-                                    Toast.LENGTH_SHORT).show();
-                            resetPunchButton();
-                            return;
-                        }
-
-                        float dist = GeofenceUtils.distanceMeters(
-                                location.getLatitude(), location.getLongitude(),
-                                oLat, oLng
-                        );
-
-                        if (dist > 500f) {
-                            Toast.makeText(getContext(),
-                                    "Outside office by " + Math.round(dist) + " m. Must be within 500 m.",
-                                    Toast.LENGTH_LONG).show();
-                            resetPunchButton();
-                            return;
-                        }
-                    }
-
-                    // Inside geofence: proceed
-                    if (isPunchedIn) {
-                        punchOut(location);
-                    } else {
-                        punchIn(location);
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Failed to get location", e);
-                    Toast.makeText(getContext(),
-                            "Location error. Please enable GPS and try again.",
-                            Toast.LENGTH_SHORT).show();
-                    resetPunchButton();
-                });
+        // Open bottom sheet that shows distance and controls Punch In/Out
+        PunchBottomSheet.show(
+                this,
+                isPunchedIn,
+                currentEmployee.getOfficeLat(),
+                currentEmployee.getOfficeLng(),
+                500f,
+                currentUserId
+        );
     }
+
 
 
     private void resetPunchButton() {
