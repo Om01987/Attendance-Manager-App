@@ -2,8 +2,22 @@ package com.inout.attendancemanager.models;
 
 import java.util.Date;
 
+/**
+ * Employee profile model mapped from Firestore employees/{uid}.
+ * - uid: Firestore document id (auth uid)
+ * - userId: optional business user id (can mirror uid or differ)
+ * - isAdmin: admin flag used by client routing and UI
+ * - approvalStatus: "pending" | "approved" | "rejected"
+ */
 public class Employee {
+
+    // Firestore document ID (Auth UID). Not stored by Firestore by default; set from code after fetch.
+    private String uid;
+
+    // Optional business identifier (can be same as uid or different)
     private String userId;
+
+    // Profile fields
     private String employeeId;
     private String fullName;
     private String department;
@@ -17,13 +31,24 @@ public class Employee {
     private String phoneNumber;
     private String deviceId;
     private Date registrationDate;
+
+    // Status flags
     private boolean isActive;
     private String approvalStatus; // pending, approved, rejected
+
+    // Admin flag for approval console access and admin routing
+    private Boolean isAdmin;
 
     // Empty constructor for Firestore
     public Employee() {}
 
     // Getters and Setters
+
+    // uid (doc id) - injected by client code after reading Firestore doc snapshot
+    public String getUid() { return uid; }
+    public void setUid(String uid) { this.uid = uid; }
+
+    // business user id
     public String getUserId() { return userId; }
     public void setUserId(String userId) { this.userId = userId; }
 
@@ -71,4 +96,8 @@ public class Employee {
 
     public String getApprovalStatus() { return approvalStatus; }
     public void setApprovalStatus(String approvalStatus) { this.approvalStatus = approvalStatus; }
+
+    // Admin flag. Use Boolean wrapper to allow null, then check with Boolean.TRUE.equals(...)
+    public Boolean getIsAdmin() { return isAdmin; }
+    public void setIsAdmin(Boolean isAdmin) { this.isAdmin = isAdmin; }
 }

@@ -283,14 +283,13 @@ public class MobileVerificationActivity extends AppCompatActivity {
     }
 
     private void navigateToNextActivity() {
-        // TODO: Navigate to Employee Registration Activity (will implement later)
-        Intent intent = new Intent(MobileVerificationActivity.this,
-                com.inout.attendancemanager.MainActivity.class);
-        intent.putExtra("message", "Phone verified! Employee registration coming soon...");
+        // Defer all routing to Splash so admin-first logic applies
+        Intent intent = new Intent(MobileVerificationActivity.this, SplashActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
     }
+
 
     private void setLoadingState(boolean loading) {
         if (loading) {

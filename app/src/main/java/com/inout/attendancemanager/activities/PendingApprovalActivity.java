@@ -6,11 +6,11 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
-import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.button.MaterialButton;
@@ -19,6 +19,7 @@ import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.inout.attendancemanager.MainActivity;
 import com.inout.attendancemanager.R;
+import com.inout.attendancemanager.models.Employee;
 import com.inout.attendancemanager.utils.Constants;
 
 public class PendingApprovalActivity extends AppCompatActivity {
@@ -46,11 +47,45 @@ public class PendingApprovalActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_pending_approval);
 
+        // Use OnBackPressedDispatcher to block back gesture
+        OnBackPressedCallback backPressedCallback = new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                Toast.makeText(PendingApprovalActivity.this, "Back disabled on this screen", Toast.LENGTH_SHORT).show();
+            }
+        };
+        getOnBackPressedDispatcher().addCallback(this, backPressedCallback);
+
         initFirebase();
         initViews();
-        setupClickListeners();
-        loadEmployeeInfo();
-        startPeriodicStatusCheck();
+
+        // Fallback admin redirect if this screen is reached erroneously
+        String uid = firebaseAuth.getCurrentUser() != null ? firebaseAuth.getCurrentUser().getUid() : null;
+        if (uid != null) {
+            firestore.collection(Constants.COLLECTION_EMPLOYEES)
+                    .document(uid)
+                    .get()
+                    .addOnSuccessListener(doc -> {
+                        Employee current = doc.toObject(Employee.class);
+                        if (current != null && Boolean.TRUE.equals(current.getIsAdmin())) {
+                            startActivity(new Intent(this, AdminApprovalActivity.class));
+                            finish();
+                        } else {
+                            setupClickListeners();
+                            loadEmployeeInfo();
+                            startPeriodicStatusCheck();
+                        }
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.e(TAG, "Admin check failed", e);
+                        setupClickListeners();
+                        loadEmployeeInfo();
+                        startPeriodicStatusCheck();
+                    });
+        } else {
+            Toast.makeText(this, "Please sign in again.", Toast.LENGTH_SHORT).show();
+            logout();
+        }
     }
 
     private void initFirebase() {
@@ -78,15 +113,13 @@ public class PendingApprovalActivity extends AppCompatActivity {
     private void loadEmployeeInfo() {
         String employeeName = sharedPreferences.getString("full_name", "Employee");
         String employeeId = sharedPreferences.getString("employee_id", "");
-
-        if (!employeeName.equals("Employee")) {
+        if (!"Employee".equals(employeeName)) {
             tvEmployeeName.setText("Welcome, " + employeeName);
-            tvEmployeeName.setVisibility(View.VISIBLE);
+            tvEmployeeName.setVisibility(TextView.VISIBLE);
         }
-
         if (!employeeId.isEmpty()) {
             tvEmployeeId.setText("ID: " + employeeId);
-            tvEmployeeId.setVisibility(View.VISIBLE);
+            tvEmployeeId.setVisibility(TextView.VISIBLE);
         }
     }
 
@@ -101,7 +134,7 @@ public class PendingApprovalActivity extends AppCompatActivity {
         btnCheckStatus.setEnabled(false);
         btnCheckStatus.setText("Checking...");
 
-        firestore.collection("employees")
+        firestore.collection(Constants.COLLECTION_EMPLOYEES)
                 .document(uid)
                 .get()
                 .addOnSuccessListener(this::handleStatusResult)
@@ -119,9 +152,7 @@ public class PendingApprovalActivity extends AppCompatActivity {
 
         if (document.exists()) {
             String status = document.getString("approvalStatus");
-
             if ("approved".equals(status)) {
-                // Update SharedPreferences and navigate to dashboard
                 updateApprovalStatusInPrefs("approved");
                 Toast.makeText(this, "Congratulations! Your profile has been approved.", Toast.LENGTH_LONG).show();
                 navigateToDashboard();
@@ -129,9 +160,8 @@ public class PendingApprovalActivity extends AppCompatActivity {
                 updateApprovalStatusInPrefs("rejected");
                 showRejectedStatus();
             } else {
-                // Still pending
                 tvStatus.setText("Status: Pending Review");
-                tvStatus.setVisibility(View.VISIBLE);
+                tvStatus.setVisibility(TextView.VISIBLE);
                 Toast.makeText(this, "Your profile is still under review.", Toast.LENGTH_SHORT).show();
             }
         } else {
@@ -150,9 +180,7 @@ public class PendingApprovalActivity extends AppCompatActivity {
         tvTitle.setText("Profile Rejected");
         tvMessage.setText("Your profile has been rejected. Please contact HR for more information.");
         tvStatus.setText("Status: Rejected");
-        tvStatus.setVisibility(View.VISIBLE);
-
-        // Change icon color to indicate rejection
+        tvStatus.setVisibility(TextView.VISIBLE);
         ivPendingIcon.setImageResource(R.drawable.ic_error);
     }
 
@@ -165,15 +193,13 @@ public class PendingApprovalActivity extends AppCompatActivity {
     }
 
     private void logout() {
-        // Clear all preferences
+        // Clear prefs
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.clear();
         editor.apply();
-
-        // Sign out from Firebase
+        // Firebase sign-out
         firebaseAuth.signOut();
-
-        // Navigate to splash
+        // Return to splash
         Intent intent = new Intent(this, SplashActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
@@ -189,8 +215,6 @@ public class PendingApprovalActivity extends AppCompatActivity {
                 statusCheckHandler.postDelayed(this, CHECK_STATUS_INTERVAL);
             }
         };
-
-        // Start checking after 30 seconds
         statusCheckHandler.postDelayed(statusCheckRunnable, CHECK_STATUS_INTERVAL);
     }
 
@@ -200,11 +224,5 @@ public class PendingApprovalActivity extends AppCompatActivity {
         if (statusCheckHandler != null && statusCheckRunnable != null) {
             statusCheckHandler.removeCallbacks(statusCheckRunnable);
         }
-    }
-
-    @Override
-    public void onBackPressed() {
-        // Prevent back navigation to registration
-        // User must either be approved or logout
     }
 }

@@ -15,8 +15,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.inout.attendancemanager.MainActivity;
 import com.inout.attendancemanager.R;
+import com.inout.attendancemanager.models.Employee;
 import com.inout.attendancemanager.utils.Constants;
 import com.inout.attendancemanager.utils.PermissionUtils;
 
@@ -44,16 +44,14 @@ public class SplashActivity extends AppCompatActivity {
         tvAppName = findViewById(R.id.tv_app_name);
         tvVersion = findViewById(R.id.tv_version);
         tvLoading = findViewById(R.id.tv_loading);
-
         sharedPreferences = getSharedPreferences(Constants.PREF_NAME, MODE_PRIVATE);
     }
 
     private void initFirebase() {
         try {
             FirebaseApp.initializeApp(this);
-            FirebaseAuth auth = FirebaseAuth.getInstance();
-            FirebaseFirestore firestore = FirebaseFirestore.getInstance();
-
+            FirebaseAuth.getInstance();
+            FirebaseFirestore.getInstance();
             Log.d(TAG, "Firebase initialized successfully");
             tvLoading.setText("Firebase connected...");
         } catch (Exception e) {
@@ -69,7 +67,6 @@ public class SplashActivity extends AppCompatActivity {
             SharedPreferences.Editor editor = sharedPreferences.edit();
             editor.putString(Constants.PREF_DEVICE_ID, deviceId);
             editor.apply();
-
             Log.d(TAG, "Device ID generated: " + deviceId);
             tvLoading.setText("Device registered...");
         } catch (Exception e) {
@@ -78,20 +75,19 @@ public class SplashActivity extends AppCompatActivity {
     }
 
     private void startSplashTimer() {
-        new Handler(Looper.getMainLooper()).postDelayed(this::checkUserSession, SPLASH_DELAY);
+        new Handler(Looper.getMainLooper()).postDelayed(this::checkUserSessionAndRoute, SPLASH_DELAY);
     }
 
-    private void checkUserSession() {
-        SharedPreferences prefs = getSharedPreferences(Constants.PREF_NAME, MODE_PRIVATE);
+    private void checkUserSessionAndRoute() {
+        // Permissions and phone verification checks from prefs
         boolean perms = PermissionUtils.hasAllRequiredPermissions(this);
-        boolean phoneVerified = prefs.getBoolean(Constants.PREF_PHONE_VERIFIED, false);
-        String userId = prefs.getString(Constants.PREF_USER_ID, null);
+        boolean phoneVerified = sharedPreferences.getBoolean(Constants.PREF_PHONE_VERIFIED, false);
 
         if (!perms) { navigateToPermissions(); return; }
         if (!phoneVerified) { navigateToMobileVerification(); return; }
 
-        // Resolve UID once and keep it effectively final for lambdas
-        String uid = userId;
+        // Resolve UID from Auth or prefs
+        String uid = sharedPreferences.getString(Constants.PREF_USER_ID, null);
         if (uid == null || uid.isEmpty()) {
             if (FirebaseAuth.getInstance().getCurrentUser() != null) {
                 uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
@@ -100,36 +96,50 @@ public class SplashActivity extends AppCompatActivity {
                 return;
             }
         }
-        final String finalUid = uid; // effectively final for lambda capture [OK]
+        final String finalUid = uid;
 
+        // Always read Firestore to get authoritative routing state
         FirebaseFirestore.getInstance()
                 .collection(Constants.COLLECTION_EMPLOYEES)
                 .document(finalUid)
                 .get()
                 .addOnSuccessListener(doc -> {
-                    if (doc != null && doc.exists()) {
-                        // Persist canonical state for future launches
-                        SharedPreferences.Editor ed = prefs.edit();
-                        ed.putString(Constants.PREF_USER_ID, finalUid);
-                        ed.putBoolean(Constants.PREF_PROFILE_COMPLETED, true);
-                        ed.apply();
+                    if (doc == null || !doc.exists()) {
+                        navigateToEmployeeRegistration();
+                        return;
+                    }
 
-                        String status = doc.getString("approvalStatus");
-                        if ("approved".equals(status)) {
-                            navigateToDashboard();
-                        } else if ("pending".equals(status) || status == null) {
-                            navigateToPendingApproval();
-                        } else {
-                            // rejected or unknown → registration to correct profile
-                            navigateToEmployeeRegistration();
-                        }
+                    // Persist canonical state for future launches
+                    sharedPreferences.edit()
+                            .putString(Constants.PREF_USER_ID, finalUid)
+                            .putBoolean(Constants.PREF_PROFILE_COMPLETED, true)
+                            .apply();
+
+                    Employee emp = doc.toObject(Employee.class);
+
+                    // 1) Admin first: go to admin approval console
+                    if (emp != null && Boolean.TRUE.equals(emp.getIsAdmin())) {
+                        navigateToAdminApproval();
+                        return;
+                    }
+
+                    // 2) Approved non-admin -> Dashboard
+                    String status = doc.getString("approvalStatus");
+                    if ("approved".equals(status)) {
+                        navigateToDashboard();
+                        return;
+                    }
+
+                    // 3) Pending or unknown -> PendingApproval
+                    if ("pending".equals(status) || status == null) {
+                        navigateToPendingApproval();
                     } else {
-                        // No profile yet
+                        // rejected or other -> allow re-registration/fix
                         navigateToEmployeeRegistration();
                     }
                 })
                 .addOnFailureListener(e -> {
-                    // Network/read error: avoid dead-end; show pending screen
+                    // Network/read error: safe default
                     navigateToPendingApproval();
                 });
     }
@@ -149,8 +159,7 @@ public class SplashActivity extends AppCompatActivity {
     private void navigateToDashboard() {
         Intent i = new Intent(this, DashboardActivity.class);
         i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        startActivity(i);
-        finish();
+        startActivity(i); finish();
     }
 
     private void navigateToEmployeeRegistration() {
@@ -161,6 +170,12 @@ public class SplashActivity extends AppCompatActivity {
 
     private void navigateToPendingApproval() {
         Intent i = new Intent(this, PendingApprovalActivity.class);
+        i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(i); finish();
+    }
+
+    private void navigateToAdminApproval() {
+        Intent i = new Intent(this, AdminApprovalActivity.class);
         i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(i); finish();
     }
