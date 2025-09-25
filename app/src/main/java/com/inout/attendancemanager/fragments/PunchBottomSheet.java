@@ -3,11 +3,11 @@ package com.inout.attendancemanager.fragments;
 import android.annotation.SuppressLint;
 import android.location.Location;
 import android.os.Bundle;
-import android.widget.TextView;
-import android.widget.Toast;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -16,6 +16,7 @@ import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.chip.Chip;
 import com.google.android.material.progressindicator.CircularProgressIndicator;
 import com.inout.attendancemanager.R;
 import com.inout.attendancemanager.repositories.AttendanceRepository;
@@ -82,7 +83,7 @@ public class PunchBottomSheet extends BottomSheetDialogFragment {
     public void onViewCreated(@NonNull View v, @Nullable Bundle s) {
         TextView tvTitle   = v.findViewById(R.id.tv_punch_title);
         TextView tvStatus  = v.findViewById(R.id.tv_office_status);
-        TextView tvDist    = v.findViewById(R.id.tv_distance_info);
+        Chip chipDist      = v.findViewById(R.id.chip_distance);
         CircularProgressIndicator progress = v.findViewById(R.id.progress_location);
         MaterialButton btnConfirm = v.findViewById(R.id.btn_confirm_punch);
         MaterialButton btnCancel  = v.findViewById(R.id.btn_cancel);
@@ -97,6 +98,7 @@ public class PunchBottomSheet extends BottomSheetDialogFragment {
         // Guard: office coords must exist
         if (officeLat == 0.0 || officeLng == 0.0) {
             tvStatus.setText("Office location not set");
+            chipDist.setText("Distance: -- m");
             progress.setVisibility(View.GONE);
             btnConfirm.setEnabled(false);
             btnConfirm.setAlpha(0.5f);
@@ -110,16 +112,17 @@ public class PunchBottomSheet extends BottomSheetDialogFragment {
                     progress.setVisibility(View.GONE);
                     if (loc == null) {
                         tvStatus.setText("Location unavailable");
-                        tvDist.setText("Distance: -- m");
+                        chipDist.setText("Distance: -- m");
                         btnConfirm.setEnabled(false);
                         btnConfirm.setAlpha(0.5f);
                         btnConfirm.setOnClickListener(null);
                         return;
                     }
+
                     float dist = GeofenceUtils.distanceMeters(
                             loc.getLatitude(), loc.getLongitude(), officeLat, officeLng);
 
-                    tvDist.setText("Distance: " + Math.round(dist) + " m");
+                    chipDist.setText("Distance: " + Math.round(dist) + " m");
 
                     if (dist <= radiusM) {
                         tvStatus.setText("Inside office radius (" + (int) radiusM + " m)");
@@ -136,6 +139,7 @@ public class PunchBottomSheet extends BottomSheetDialogFragment {
                 .addOnFailureListener(e -> {
                     progress.setVisibility(View.GONE);
                     tvStatus.setText("Location error");
+                    chipDist.setText("Distance: -- m");
                     btnConfirm.setEnabled(false);
                     btnConfirm.setAlpha(0.5f);
                     btnConfirm.setOnClickListener(null);
