@@ -7,11 +7,16 @@ import android.view.View;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
+import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.chip.Chip;
+import com.google.android.material.imageview.ShapeableImageView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
@@ -30,11 +35,23 @@ import java.util.List;
 public class AdminApprovalActivity extends AppCompatActivity {
     private static final String TAG = "AdminApproval";
 
+    // Header UI
+    private MaterialToolbar topAppBar;
+    private ShapeableImageView ivAdminAvatar;
+    private View btnHeaderLogout;
+    private View emptyState;
+    private Chip chipPending;
+    private View tvAdminName;
+    private View tvAdminPhone;
+
+    // Content UI
     private RecyclerView recyclerView;
     private ProgressBar progressBar;
-    private AdminApprovalAdapter adapter;
+
+    // Data
     private final List<Employee> pendingList = new ArrayList<>();
 
+    // Firebase
     private FirebaseFirestore firestore;
     private FirebaseAuth auth;
     private ListenerRegistration registration;
@@ -47,7 +64,6 @@ public class AdminApprovalActivity extends AppCompatActivity {
         firestore = FirebaseFirestore.getInstance();
         auth = FirebaseAuth.getInstance();
 
-        // Guard: if not signed in, return to Splash
         if (auth.getCurrentUser() == null) {
             startActivity(new Intent(this, SplashActivity.class)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
@@ -55,12 +71,90 @@ public class AdminApprovalActivity extends AppCompatActivity {
             return;
         }
 
+        bindViews();
+        setupToolbar();
+        setupBackHandler();
+        setupList();
+        loadAdminHeader();
+    }
+
+    private void bindViews() {
+        topAppBar = findViewById(R.id.topAppBar);
+        ivAdminAvatar = findViewById(R.id.iv_admin_avatar);
+        btnHeaderLogout = findViewById(R.id.btn_header_logout);
+        chipPending = findViewById(R.id.chip_pending);
+        tvAdminName = findViewById(R.id.tv_admin_name);
+        tvAdminPhone = findViewById(R.id.tv_admin_phone);
         recyclerView = findViewById(R.id.rv_pending);
         progressBar = findViewById(R.id.pb_loading);
+        emptyState = findViewById(R.id.empty_state);
 
-        adapter = new AdminApprovalAdapter(pendingList, this::onStatusChange);
+        btnHeaderLogout.setOnClickListener(v -> logout());
+    }
+
+    private void setupToolbar() {
+        topAppBar.setNavigationOnClickListener(v -> {
+            startActivity(new Intent(this, SplashActivity.class)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+            finish();
+        });
+    }
+
+    private void setupBackHandler() {
+        OnBackPressedCallback backPressedCallback = new OnBackPressedCallback(true) {
+            @Override public void handleOnBackPressed() {
+                startActivity(new Intent(AdminApprovalActivity.this, SplashActivity.class)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+                finish();
+            }
+        };
+        getOnBackPressedDispatcher().addCallback(this, backPressedCallback);
+    }
+
+    private void setupList() {
+        AdminApprovalAdapter adapter = new AdminApprovalAdapter(pendingList, this::onStatusChange);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(adapter);
+    }
+
+    private void loadAdminHeader() {
+        String uid = auth.getCurrentUser().getUid();
+        firestore.collection(Constants.COLLECTION_EMPLOYEES)
+                .document(uid)
+                .get()
+                .addOnSuccessListener(doc -> {
+                    Employee me = doc.toObject(Employee.class);
+                    String name = (me != null && me.getFullName() != null) ? me.getFullName() : "Administrator";
+                    String phone = (me != null) ? maskPhone(me.getPhoneNumber()) : "";
+                    ((android.widget.TextView) tvAdminName).setText(name);
+                    ((android.widget.TextView) tvAdminPhone).setText(phone);
+
+                    String photoUrl = (me != null) ? me.getProfileImageUrl() : null;
+                    Glide.with(this)
+                            .load(photoUrl)
+                            .placeholder(R.drawable.ic_admin_avatar)
+                            .error(R.drawable.ic_admin_avatar)
+                            .into(ivAdminAvatar);
+                })
+                .addOnFailureListener(e -> {
+                    ((android.widget.TextView) tvAdminName).setText("Administrator");
+                    ((android.widget.TextView) tvAdminPhone).setText("");
+                    Glide.with(this).load(R.drawable.ic_admin_avatar).into(ivAdminAvatar);
+                });
+    }
+
+    private String maskPhone(String p) {
+        if (p == null || p.isEmpty()) return "";
+        String cc = "";
+        String rest = p;
+        if (p.startsWith("+") && p.length() > 3) {
+            cc = p.substring(0, 3); // e.g., +91
+            rest = p.substring(3);
+        }
+        String digits = rest.replaceAll("\\D", "");
+        if (digits.length() <= 2) return cc + " ••";
+        String last2 = digits.substring(digits.length() - 2);
+        return (cc + " •••••••• " + last2).trim();
     }
 
     @Override
@@ -79,7 +173,6 @@ public class AdminApprovalActivity extends AppCompatActivity {
         if (registration != null) return;
         progressBar.setVisibility(View.VISIBLE);
 
-        // Option B: no orderBy, avoids composite index and missing-field issues
         registration = firestore.collection(Constants.COLLECTION_EMPLOYEES)
                 .whereEqualTo("approvalStatus", "pending")
                 .addSnapshotListener(this, new EventListener<QuerySnapshot>() {
@@ -89,18 +182,15 @@ public class AdminApprovalActivity extends AppCompatActivity {
                         progressBar.setVisibility(View.GONE);
 
                         if (e != null) {
-                            // Keep current list visible to avoid blank UI on transient errors
                             Log.e(TAG, "pending listener error: code=" + e.getCode() + ", msg=" + e.getMessage(), e);
                             Toast.makeText(AdminApprovalActivity.this,
                                     "Failed to load pending: " + e.getMessage(),
                                     Toast.LENGTH_LONG).show();
-
-                            // If auth became null mid-session, bounce to Splash
                             if (auth.getCurrentUser() == null) {
-                                startActivity(new Intent(AdminApprovalActivity.this, SplashActivity.class)
-                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
-                                finish();
+                                logout();
+                                return;
                             }
+                            toggleEmpty();
                             return;
                         }
 
@@ -114,14 +204,25 @@ public class AdminApprovalActivity extends AppCompatActivity {
                                 }
                             }
                         }
-                        adapter.notifyDataSetChanged();
-
-                        if (pendingList.isEmpty()) {
-                            Toast.makeText(AdminApprovalActivity.this,
-                                    "No pending approvals", Toast.LENGTH_SHORT).show();
-                        }
+                        recyclerView.getAdapter().notifyDataSetChanged();
+                        updatePendingChip();
+                        toggleEmpty();
                     }
                 });
+    }
+
+    private void updatePendingChip() {
+        chipPending.setText("Pending: " + pendingList.size());
+    }
+
+    private void toggleEmpty() {
+        if (pendingList.isEmpty()) {
+            emptyState.setVisibility(View.VISIBLE);
+            recyclerView.setVisibility(View.INVISIBLE);
+        } else {
+            emptyState.setVisibility(View.GONE);
+            recyclerView.setVisibility(View.VISIBLE);
+        }
     }
 
     private void detachListener() {
@@ -141,7 +242,6 @@ public class AdminApprovalActivity extends AppCompatActivity {
                     Toast.makeText(this,
                             employee.getFullName() + " " + newStatus,
                             Toast.LENGTH_SHORT).show();
-                    // Listener will auto-refresh list
                 })
                 .addOnFailureListener(e -> {
                     progressBar.setVisibility(View.GONE);
@@ -149,5 +249,12 @@ public class AdminApprovalActivity extends AppCompatActivity {
                     Toast.makeText(this, "Update failed: " + e.getMessage(),
                             Toast.LENGTH_LONG).show();
                 });
+    }
+
+    private void logout() {
+        try { FirebaseAuth.getInstance().signOut(); } catch (Exception ignored) {}
+        startActivity(new Intent(this, SplashActivity.class)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+        finish();
     }
 }
