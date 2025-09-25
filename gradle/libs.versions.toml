@@ -78,6 +78,8 @@ dexter = { module = "com.karumi:dexter", version.ref = "dexter" }
 #noinspection SimilarGradleDependency
 espresso-core-v351 = { module = "androidx.test.espresso:espresso-core", version.ref = "espressoCoreVersion" }
 firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
+firebase-appcheck = { module = "com.google.firebase:firebase-appcheck" }
+firebase-appcheck-playintegrity = { module = "com.google.firebase:firebase-appcheck-playintegrity" }
 firebase-auth = { module = "com.google.firebase:firebase-auth" }
 #noinspection SimilarGradleDependency
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }

@@ -17,7 +17,7 @@
     <string name="send_verification_code">Send Verification Code</string>
     <string name="complete_number">Complete Number: %s</string>
     <string name="secure_verification">Secure Verification</string>
-    <string name="verification_info">We&apos;ll send a 6-digit code to verify your number</string>
+<!--    <string name="verification_info">We&apos;ll send a 6-digit code to verify your number</string>-->
     <string name="terms_privacy">By continuing, you agree to our Terms of Service and Privacy Policy</string>
 
     <!-- OTP Verification -->
@@ -28,7 +28,8 @@
     <string name="resend_in">Resend in %ds</string>
     <string name="resend_otp">Resend OTP</string>
     <string name="wrong_number">Wrong number? Change it</string>
-    <string name="auto_detection_info">We&apos;ll automatically detect the code from your SMS</string>
+    <!-- Renamed to avoid collision with biometric library -->
+<!--    <string name="auto_detection_info_text">We&apos;ll automatically detect the code from your SMS</string>-->
 
     <!-- Errors & Success -->
     <string name="invalid_phone_number">Please enter a valid phone number</string>

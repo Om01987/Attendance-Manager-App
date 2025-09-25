@@ -27,6 +27,7 @@ import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.chip.Chip;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.inout.attendancemanager.R;
 import com.inout.attendancemanager.activities.DashboardActivity;
 import com.inout.attendancemanager.models.Attendance;

@@ -72,8 +72,8 @@ dependencies {
     implementation libs.google.firebase.messaging
 
     // Firebase App Check (Play Integrity)
-    implementation 'com.google.firebase:firebase-appcheck'
-    implementation 'com.google.firebase:firebase-appcheck-playintegrity'
+    implementation libs.firebase.appcheck
+    implementation libs.firebase.appcheck.playintegrity
 
 
     // ==================== GOOGLE PLAY SERVICES ====================
@@ -125,7 +125,7 @@ dependencies {
     // ==================== SECURITY & BIOMETRICS ====================
 
     // Biometric authentication
-    implementation libs.biometric
+//    implementation libs.biometric
 
     // ==================== QR CODE & SCANNING ====================
 
