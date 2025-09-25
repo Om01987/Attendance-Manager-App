@@ -10,7 +10,6 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -26,14 +25,13 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.chip.Chip;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.inout.attendancemanager.R;
 import com.inout.attendancemanager.activities.DashboardActivity;
 import com.inout.attendancemanager.models.Attendance;
 import com.inout.attendancemanager.models.AttendanceSummary;
 import com.inout.attendancemanager.models.Employee;
-import com.inout.attendancemanager.utils.Constants;
+import com.inout.attendancemanager.repositories.AttendanceRepository;
 import com.inout.attendancemanager.utils.DateUtils;
 
 import java.text.SimpleDateFormat;
@@ -95,6 +93,9 @@ public class DashboardFragment extends Fragment {
     private Runnable countdownRunnable;
     private boolean isPunchedIn = false;
 
+    // Repository
+    private AttendanceRepository attendanceRepo;
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         return inflater.inflate(R.layout.fragment_dashboard, container, false);
@@ -107,7 +108,18 @@ public class DashboardFragment extends Fragment {
         initFirebase();
         initViews(view);
         setupClickListeners();
-        loadDashboardData();
+        setupInitialUI();
+
+        // Repository + realtime observer for today
+        if (currentUserId != null) {
+            attendanceRepo = new AttendanceRepository(currentUserId);
+            attendanceRepo.observeToday().observe(getViewLifecycleOwner(), att -> {
+                todayAttendance = att;
+                updatePunchCardUI();
+            });
+        }
+
+        loadMonthSummary();
         startCountdownTimer();
     }
 
@@ -155,24 +167,19 @@ public class DashboardFragment extends Fragment {
         cardHolidays = view.findViewById(R.id.card_holidays);
         cardSalarySlip = view.findViewById(R.id.card_salary_slip);
         cardReports = view.findViewById(R.id.card_reports);
-
-        setupInitialUI();
     }
 
     private void setupInitialUI() {
-        // Set current date
+        // Date
         SimpleDateFormat dateFormat = new SimpleDateFormat("EEEE, dd MMMM yyyy", Locale.getDefault());
         tvCurrentDate.setText(dateFormat.format(new Date()));
-
-        // Set shift time (default 9 AM - 6 PM)
+        // Shift
         tvShiftTime.setText("09:00 AM - 06:00 PM");
 
         if (currentEmployee != null) {
-            // Set employee info
             tvEmployeeName.setText(currentEmployee.getFullName());
             tvEmployeeDesignation.setText(currentEmployee.getDesignation() + " • " + currentEmployee.getDepartment());
 
-            // Load profile image
             if (currentEmployee.getProfileImageUrl() != null && !currentEmployee.getProfileImageUrl().isEmpty()) {
                 Glide.with(this)
                         .load(currentEmployee.getProfileImageUrl())
@@ -181,7 +188,6 @@ public class DashboardFragment extends Fragment {
                         .into(ivProfileImage);
             }
 
-            // Set approval status
             String status = currentEmployee.getApprovalStatus();
             if ("approved".equals(status)) {
                 chipApprovalStatus.setText("✓ Approved");
@@ -203,36 +209,6 @@ public class DashboardFragment extends Fragment {
         cardHolidays.setOnClickListener(v -> Toast.makeText(getContext(), "Holidays - Coming Soon", Toast.LENGTH_SHORT).show());
         cardSalarySlip.setOnClickListener(v -> Toast.makeText(getContext(), "Salary Slip - Coming Soon", Toast.LENGTH_SHORT).show());
         cardReports.setOnClickListener(v -> Toast.makeText(getContext(), "Reports - Coming Soon", Toast.LENGTH_SHORT).show());
-    }
-
-    private void loadDashboardData() {
-        loadTodayAttendance();
-        loadMonthSummary();
-    }
-
-    private void loadTodayAttendance() {
-        if (currentUserId == null) return;
-
-        String todayDateId = DateUtils.getTodayDateId();
-
-        firestore.collection("attendance")
-                .document(currentUserId)
-                .collection("days")
-                .document(todayDateId)
-                .get()
-                .addOnSuccessListener(doc -> {
-                    if (doc.exists()) {
-                        todayAttendance = doc.toObject(Attendance.class);
-                        updatePunchCardUI();
-                    } else {
-                        // No attendance record for today
-                        todayAttendance = null;
-                        updatePunchCardUI();
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Failed to load today's attendance", e);
-                });
     }
 
     private void loadMonthSummary() {
@@ -282,8 +258,9 @@ public class DashboardFragment extends Fragment {
     }
 
     private void updatePunchCardUI() {
+        final long TARGET_MIN = 540L;
+
         if (todayAttendance == null) {
-            // No punch yet today
             isPunchedIn = false;
             tvCurrentStatus.setText("Not Started");
             tvInTime.setText("--:--");
@@ -291,31 +268,42 @@ public class DashboardFragment extends Fragment {
             tvWorkingHours.setText("00:00");
             btnPunchAction.setText("Punch In");
             btnPunchAction.setEnabled(currentEmployee != null && "approved".equals(currentEmployee.getApprovalStatus()));
+            return;
+        }
+
+        Long total = todayAttendance.getTotalMinutes();
+        if (total == null) total = 0L;
+
+        if (todayAttendance.getInTime() != null && todayAttendance.getOutTime() == null) {
+            // Active session
+            isPunchedIn = true;
+            tvCurrentStatus.setText("On Duty");
+            tvInTime.setText(DateUtils.formatTime(todayAttendance.getInTime()));
+            tvOutTime.setText("--:--");
+            updateWorkingHours();
+            btnPunchAction.setText("Punch Out");
+            btnPunchAction.setEnabled(true);
         } else {
-            if (todayAttendance.getInTime() != null && todayAttendance.getOutTime() == null) {
-                // Punched in, not out
-                isPunchedIn = true;
-                tvCurrentStatus.setText("On Duty");
-                tvInTime.setText(DateUtils.formatTime(todayAttendance.getInTime()));
-                tvOutTime.setText("--:--");
-                updateWorkingHours();
-                btnPunchAction.setText("Punch Out");
-                btnPunchAction.setEnabled(true);
-            } else if (todayAttendance.getInTime() != null && todayAttendance.getOutTime() != null) {
-                // Complete day
-                isPunchedIn = false;
+            // No active session, consider totals
+            isPunchedIn = false;
+            tvInTime.setText(todayAttendance.getInTime() != null ? DateUtils.formatTime(todayAttendance.getInTime()) : "--:--");
+            tvOutTime.setText(todayAttendance.getOutTime() != null ? DateUtils.formatTime(todayAttendance.getOutTime()) : "--:--");
+            tvWorkingHours.setText(DateUtils.formatDuration(total));
+            if (total >= TARGET_MIN) {
                 tvCurrentStatus.setText("Day Complete");
-                tvInTime.setText(DateUtils.formatTime(todayAttendance.getInTime()));
-                tvOutTime.setText(DateUtils.formatTime(todayAttendance.getOutTime()));
-                tvWorkingHours.setText(DateUtils.formatDuration(todayAttendance.getTotalMinutes()));
                 btnPunchAction.setText("Day Complete");
                 btnPunchAction.setEnabled(false);
+            } else {
+                tvCurrentStatus.setText("Under Hours");
+                btnPunchAction.setText("Punch In");
+                btnPunchAction.setEnabled(true);
             }
         }
     }
 
+
     private void updateWorkingHours() {
-        if (todayAttendance != null && todayAttendance.getInTime() != null) {
+        if (todayAttendance != null && todayAttendance.getInTime() != null && todayAttendance.getOutTime() == null) {
             long workingMinutes = (System.currentTimeMillis() - todayAttendance.getInTime().getTime()) / (1000 * 60);
             tvWorkingHours.setText(DateUtils.formatDuration(workingMinutes));
         }
@@ -329,7 +317,7 @@ public class DashboardFragment extends Fragment {
             tvMissedDays.setText(String.valueOf(monthSummary.getMissedPunchDays()));
         }
 
-        // TODO: Load leave data
+        // TODO: Hook to leave data
         tvTotalLeaves.setText("20");
         tvUsedLeaves.setText("5");
         tvRemainingLeaves.setText("15");
@@ -355,7 +343,6 @@ public class DashboardFragment extends Fragment {
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Failed to get location", e);
-                    // Proceed without location
                     if (isPunchedIn) {
                         punchOut(null);
                     } else {
@@ -365,81 +352,41 @@ public class DashboardFragment extends Fragment {
     }
 
     private void punchIn(Location location) {
-        String todayDateId = DateUtils.getTodayDateId();
-        Date now = new Date();
+        String deviceId = android.provider.Settings.Secure.getString(
+                requireContext().getContentResolver(), android.provider.Settings.Secure.ANDROID_ID);
 
-        Attendance attendance = new Attendance();
-        attendance.setUserId(currentUserId);
-        attendance.setDateId(todayDateId);
-        attendance.setInTime(now);
-        attendance.setStatus("present");
-        attendance.setMethod("manual");
-        attendance.setCreatedAt(now);
-        attendance.setUpdatedAt(now);
-
-        if (location != null) {
-            attendance.setLatitude(location.getLatitude());
-            attendance.setLongitude(location.getLongitude());
-        }
-
-        firestore.collection("attendance")
-                .document(currentUserId)
-                .collection("days")
-                .document(todayDateId)
-                .set(attendance)
-                .addOnSuccessListener(aVoid -> {
-                    todayAttendance = attendance;
-                    isPunchedIn = true;
-                    updatePunchCardUI();
-                    Toast.makeText(getContext(), "Punched In Successfully", Toast.LENGTH_SHORT).show();
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Failed to punch in", e);
-                    btnPunchAction.setEnabled(true);
-                    btnPunchAction.setText("Punch In");
-                    Toast.makeText(getContext(), "Failed to punch in. Please try again.", Toast.LENGTH_SHORT).show();
-                });
+        attendanceRepo.punchIn(
+                deviceId,
+                location != null ? location.getLatitude() : null,
+                location != null ? location.getLongitude() : null
+        ).addOnSuccessListener(aVoid -> {
+            Toast.makeText(getContext(), "Punched In Successfully", Toast.LENGTH_SHORT).show();
+            btnPunchAction.setEnabled(true);
+        }).addOnFailureListener(e -> {
+            Log.e(TAG, "Failed to punch in", e);
+            btnPunchAction.setEnabled(true);
+            btnPunchAction.setText("Punch In");
+            Toast.makeText(getContext(), e.getMessage(), Toast.LENGTH_SHORT).show();
+        });
     }
 
-    private void punchOut(Location location) {
-        if (todayAttendance == null) {
+    private void punchOut(@Nullable Location location) {
+        String deviceId = android.provider.Settings.Secure.getString(
+                requireContext().getContentResolver(), android.provider.Settings.Secure.ANDROID_ID);
+
+        attendanceRepo.punchOut(
+                deviceId,
+                location != null ? location.getLatitude() : null,
+                location != null ? location.getLongitude() : null
+        ).addOnSuccessListener(aVoid -> {
+            Toast.makeText(getContext(), "Punched Out Successfully", Toast.LENGTH_SHORT).show();
+            btnPunchAction.setEnabled(true);
+        }).addOnFailureListener(e -> {
+            Log.e(TAG, "Failed to punch out", e);
             btnPunchAction.setEnabled(true);
             btnPunchAction.setText("Punch Out");
-            Toast.makeText(getContext(), "No punch in record found", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        Date now = new Date();
-        todayAttendance.setOutTime(now);
-
-        if (todayAttendance.getInTime() != null) {
-            long totalMinutes = (now.getTime() - todayAttendance.getInTime().getTime()) / (1000 * 60);
-            todayAttendance.setTotalMinutes(totalMinutes);
-        }
-
-        todayAttendance.setUpdatedAt(now);
-
-        if (location != null) {
-            todayAttendance.setLatitude(location.getLatitude());
-            todayAttendance.setLongitude(location.getLongitude());
-        }
-
-        firestore.collection("attendance")
-                .document(currentUserId)
-                .collection("days")
-                .document(todayAttendance.getDateId())
-                .set(todayAttendance)
-                .addOnSuccessListener(aVoid -> {
-                    isPunchedIn = false;
-                    updatePunchCardUI();
-                    Toast.makeText(getContext(), "Punched Out Successfully", Toast.LENGTH_SHORT).show();
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Failed to punch out", e);
-                    btnPunchAction.setEnabled(true);
-                    btnPunchAction.setText("Punch Out");
-                    Toast.makeText(getContext(), "Failed to punch out. Please try again.", Toast.LENGTH_SHORT).show();
-                });
+            Toast.makeText(getContext(), e.getMessage(), Toast.LENGTH_SHORT).show();
+        });
     }
 
     private void startCountdownTimer() {
@@ -449,14 +396,13 @@ public class DashboardFragment extends Fragment {
             public void run() {
                 updateCountdown();
                 updateWorkingHours();
-                countdownHandler.postDelayed(this, 60000); // Update every minute
+                countdownHandler.postDelayed(this, 60000);
             }
         };
         countdownHandler.post(countdownRunnable);
     }
 
     private void updateCountdown() {
-        // Calculate time remaining until 6 PM
         Calendar now = Calendar.getInstance();
         Calendar endOfDay = Calendar.getInstance();
         endOfDay.set(Calendar.HOUR_OF_DAY, 18);
@@ -498,4 +444,3 @@ public class DashboardFragment extends Fragment {
         }
     }
 }
-
