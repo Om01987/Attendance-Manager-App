@@ -263,6 +263,15 @@
                         android:layout_gravity="center_horizontal"
                         android:layout_marginBottom="20dp" />
 
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_view_details"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="View Details"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_marginBottom="12dp" />
+
                     <!-- Punch Button -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_punch_action"

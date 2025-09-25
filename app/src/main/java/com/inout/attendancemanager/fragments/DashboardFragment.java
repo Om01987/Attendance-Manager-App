@@ -46,7 +46,6 @@ public class DashboardFragment extends Fragment {
     private static final String TAG = "DashboardFragment";
     private static final int LOCATION_PERMISSION_REQUEST = 1001;
 
-    // UI Components
     private CircleImageView ivProfileImage;
     private TextView tvWelcomeMessage;
     private TextView tvEmployeeName;
@@ -54,7 +53,6 @@ public class DashboardFragment extends Fragment {
     private TextView tvCurrentDate;
     private Chip chipApprovalStatus;
 
-    // Punch Card
     private MaterialCardView cardPunch;
     private TextView tvShiftTime;
     private TextView tvCurrentStatus;
@@ -64,7 +62,6 @@ public class DashboardFragment extends Fragment {
     private MaterialButton btnPunchAction;
     private TextView tvCountdown;
 
-    // Summary Cards
     private TextView tvPresentDays;
     private TextView tvAbsentDays;
     private TextView tvWeekoffDays;
@@ -73,13 +70,11 @@ public class DashboardFragment extends Fragment {
     private TextView tvUsedLeaves;
     private TextView tvRemainingLeaves;
 
-    // Quick Links
     private MaterialCardView cardAnnouncements;
     private MaterialCardView cardHolidays;
     private MaterialCardView cardSalarySlip;
     private MaterialCardView cardReports;
 
-    // Firebase & Data
     private FirebaseFirestore firestore;
     private FusedLocationProviderClient fusedLocationClient;
     private DashboardActivity dashboardActivity;
@@ -88,12 +83,10 @@ public class DashboardFragment extends Fragment {
     private Attendance todayAttendance;
     private AttendanceSummary monthSummary;
 
-    // UI State
     private Handler countdownHandler;
     private Runnable countdownRunnable;
     private boolean isPunchedIn = false;
 
-    // Repository
     private AttendanceRepository attendanceRepo;
 
     @Override
@@ -110,7 +103,6 @@ public class DashboardFragment extends Fragment {
         setupClickListeners();
         setupInitialUI();
 
-        // Repository + realtime observer for today
         if (currentUserId != null) {
             attendanceRepo = new AttendanceRepository(currentUserId);
             attendanceRepo.observeToday().observe(getViewLifecycleOwner(), att -> {
@@ -135,7 +127,6 @@ public class DashboardFragment extends Fragment {
     }
 
     private void initViews(View view) {
-        // Header
         ivProfileImage = view.findViewById(R.id.iv_profile_image);
         tvWelcomeMessage = view.findViewById(R.id.tv_welcome_message);
         tvEmployeeName = view.findViewById(R.id.tv_employee_name);
@@ -143,7 +134,6 @@ public class DashboardFragment extends Fragment {
         tvCurrentDate = view.findViewById(R.id.tv_current_date);
         chipApprovalStatus = view.findViewById(R.id.chip_approval_status);
 
-        // Punch Card
         cardPunch = view.findViewById(R.id.card_punch);
         tvShiftTime = view.findViewById(R.id.tv_shift_time);
         tvCurrentStatus = view.findViewById(R.id.tv_current_status);
@@ -153,7 +143,6 @@ public class DashboardFragment extends Fragment {
         btnPunchAction = view.findViewById(R.id.btn_punch_action);
         tvCountdown = view.findViewById(R.id.tv_countdown);
 
-        // Summary Cards
         tvPresentDays = view.findViewById(R.id.tv_present_days);
         tvAbsentDays = view.findViewById(R.id.tv_absent_days);
         tvWeekoffDays = view.findViewById(R.id.tv_weekoff_days);
@@ -162,18 +151,23 @@ public class DashboardFragment extends Fragment {
         tvUsedLeaves = view.findViewById(R.id.tv_used_leaves);
         tvRemainingLeaves = view.findViewById(R.id.tv_remaining_leaves);
 
-        // Quick Links
         cardAnnouncements = view.findViewById(R.id.card_announcements);
         cardHolidays = view.findViewById(R.id.card_holidays);
         cardSalarySlip = view.findViewById(R.id.card_salary_slip);
         cardReports = view.findViewById(R.id.card_reports);
+
+        view.findViewById(R.id.btn_view_details).setOnClickListener(v -> {
+            if (todayAttendance != null) {
+                DayDetailsBottomSheet.show(getParentFragmentManager(), todayAttendance);
+            } else {
+                Toast.makeText(getContext(), "No attendance yet.", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void setupInitialUI() {
-        // Date
         SimpleDateFormat dateFormat = new SimpleDateFormat("EEEE, dd MMMM yyyy", Locale.getDefault());
         tvCurrentDate.setText(dateFormat.format(new Date()));
-        // Shift
         tvShiftTime.setText("09:00 AM - 06:00 PM");
 
         if (currentEmployee != null) {
@@ -239,7 +233,7 @@ public class DashboardFragment extends Fragment {
                         Attendance attendance = doc.toObject(Attendance.class);
                         String status = attendance.getStatus();
 
-                        if ("present".equals(status)) present++;
+                        if ("present_complete".equals(status) || "present_in_progress".equals(status)) present++;
                         else if ("absent".equals(status)) absent++;
                         else if ("weekoff".equals(status)) weekoff++;
                         else if ("missed".equals(status)) missed++;
@@ -257,6 +251,20 @@ public class DashboardFragment extends Fragment {
                 });
     }
 
+    private void updateSummaryUI() {
+        if (monthSummary != null) {
+            tvPresentDays.setText(String.valueOf(monthSummary.getPresentDays()));
+            tvAbsentDays.setText(String.valueOf(monthSummary.getAbsentDays()));
+            tvWeekoffDays.setText(String.valueOf(monthSummary.getWeekoffDays()));
+            tvMissedDays.setText(String.valueOf(monthSummary.getMissedPunchDays()));
+        }
+
+        // TODO: Hook to leave data from backend
+        tvTotalLeaves.setText("20");
+        tvUsedLeaves.setText("5");
+        tvRemainingLeaves.setText("15");
+    }
+
     private void updatePunchCardUI() {
         final long TARGET_MIN = 540L;
 
@@ -268,59 +276,58 @@ public class DashboardFragment extends Fragment {
             tvWorkingHours.setText("00:00");
             btnPunchAction.setText("Punch In");
             btnPunchAction.setEnabled(currentEmployee != null && "approved".equals(currentEmployee.getApprovalStatus()));
+            View btnViewDetails = getView() != null ? getView().findViewById(R.id.btn_view_details) : null;
+            if (btnViewDetails != null) btnViewDetails.setEnabled(false);
             return;
         }
 
         Long total = todayAttendance.getTotalMinutes();
         if (total == null) total = 0L;
 
+        // Determine display values
+        Date displayFirstIn = todayAttendance.getFirstInTime() != null
+                ? todayAttendance.getFirstInTime() : todayAttendance.getInTime();
+        Date displayLastOut = todayAttendance.getLastOutTime() != null
+                ? todayAttendance.getLastOutTime() : todayAttendance.getOutTime();
+
         if (todayAttendance.getInTime() != null && todayAttendance.getOutTime() == null) {
             // Active session
             isPunchedIn = true;
             tvCurrentStatus.setText("On Duty");
-            tvInTime.setText(DateUtils.formatTime(todayAttendance.getInTime()));
+            tvInTime.setText(displayFirstIn != null ? DateUtils.formatTime(displayFirstIn) : "--:--");
             tvOutTime.setText("--:--");
-            updateWorkingHours();
+            updateWorkingHours(); // live from session inTime
             btnPunchAction.setText("Punch Out");
             btnPunchAction.setEnabled(true);
         } else {
-            // No active session, consider totals
+            // No active session
             isPunchedIn = false;
-            tvInTime.setText(todayAttendance.getInTime() != null ? DateUtils.formatTime(todayAttendance.getInTime()) : "--:--");
-            tvOutTime.setText(todayAttendance.getOutTime() != null ? DateUtils.formatTime(todayAttendance.getOutTime()) : "--:--");
+            tvInTime.setText(displayFirstIn != null ? DateUtils.formatTime(displayFirstIn) : "--:--");
+            tvOutTime.setText(displayLastOut != null ? DateUtils.formatTime(displayLastOut) : "--:--");
             tvWorkingHours.setText(DateUtils.formatDuration(total));
+
             if (total >= TARGET_MIN) {
                 tvCurrentStatus.setText("Day Complete");
                 btnPunchAction.setText("Day Complete");
                 btnPunchAction.setEnabled(false);
             } else {
-                tvCurrentStatus.setText("Under Hours");
+                long remaining = TARGET_MIN - total;
+                tvCurrentStatus.setText("Under Hours • Need " + DateUtils.formatDuration(remaining));
                 btnPunchAction.setText("Punch In");
                 btnPunchAction.setEnabled(true);
             }
         }
+
+        View btnViewDetails = getView() != null ? getView().findViewById(R.id.btn_view_details) : null;
+        if (btnViewDetails != null) btnViewDetails.setEnabled(true);
     }
 
-
     private void updateWorkingHours() {
+        // Live ticker from the active session start (session inTime)
         if (todayAttendance != null && todayAttendance.getInTime() != null && todayAttendance.getOutTime() == null) {
             long workingMinutes = (System.currentTimeMillis() - todayAttendance.getInTime().getTime()) / (1000 * 60);
             tvWorkingHours.setText(DateUtils.formatDuration(workingMinutes));
         }
-    }
-
-    private void updateSummaryUI() {
-        if (monthSummary != null) {
-            tvPresentDays.setText(String.valueOf(monthSummary.getPresentDays()));
-            tvAbsentDays.setText(String.valueOf(monthSummary.getAbsentDays()));
-            tvWeekoffDays.setText(String.valueOf(monthSummary.getWeekoffDays()));
-            tvMissedDays.setText(String.valueOf(monthSummary.getMissedPunchDays()));
-        }
-
-        // TODO: Hook to leave data
-        tvTotalLeaves.setText("20");
-        tvUsedLeaves.setText("5");
-        tvRemainingLeaves.setText("15");
     }
 
     private void handlePunchAction() {
@@ -351,7 +358,7 @@ public class DashboardFragment extends Fragment {
                 });
     }
 
-    private void punchIn(Location location) {
+    private void punchIn(@Nullable Location location) {
         String deviceId = android.provider.Settings.Secure.getString(
                 requireContext().getContentResolver(), android.provider.Settings.Secure.ANDROID_ID);
 

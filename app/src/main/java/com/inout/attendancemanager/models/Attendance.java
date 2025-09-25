@@ -5,10 +5,16 @@ import java.util.Date;
 public class Attendance {
     private String userId;
     private String dateId; // yyyy-MM-dd format
-    private Date inTime;
-    private Date outTime;
+
+    // Current session markers
+    private Date inTime;             // start of the current/last session
+    private Date outTime;            // end of current session; null while active
+
+    // Aggregates and status
     private long totalMinutes;
-    private String status; // "present", "absent", "weekoff", "missed"
+    private String status; // "present_in_progress", "present_complete", "absent", "weekoff", "missed"
+
+    // Device/meta
     private String deviceId;
     private String method; // "manual", "geofence", "qr"
     private double latitude;
@@ -16,10 +22,12 @@ public class Attendance {
     private Date createdAt;
     private Date updatedAt;
 
-    // Empty constructor for Firestore
+    // Display helpers (persisted in Firestore)
+    private Date firstInTime;        // first check-in of the day (for display)
+    private Date lastOutTime;        // latest check-out of the day (for display)
+
     public Attendance() {}
 
-    // Getters and Setters
     public String getUserId() { return userId; }
     public void setUserId(String userId) { this.userId = userId; }
 
@@ -55,4 +63,10 @@ public class Attendance {
 
     public Date getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(Date updatedAt) { this.updatedAt = updatedAt; }
+
+    public Date getFirstInTime() { return firstInTime; }
+    public void setFirstInTime(Date firstInTime) { this.firstInTime = firstInTime; }
+
+    public Date getLastOutTime() { return lastOutTime; }
+    public void setLastOutTime(Date lastOutTime) { this.lastOutTime = lastOutTime; }
 }

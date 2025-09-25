@@ -1,26 +1,23 @@
 package com.inout.attendancemanager.repositories;
 
-import androidx.annotation.NonNull;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.Timestamp;
-import com.google.firebase.firestore.*;
+import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FieldValue;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.FirebaseFirestoreException;
+import com.google.firebase.firestore.SetOptions;
 import com.inout.attendancemanager.models.Attendance;
 import com.inout.attendancemanager.utils.DateUtils;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
-/**
- * Handles attendance reads and writes with Firestore transactions.
- */
 public class AttendanceRepository {
-    private static final String TAG = "AttendanceRepo";
-
     private final FirebaseFirestore db;
     private final String userId;
 
@@ -29,7 +26,6 @@ public class AttendanceRepository {
         this.userId = userId;
     }
 
-    /** Observes today’s attendance document in real time. */
     public LiveData<Attendance> observeToday() {
         MutableLiveData<Attendance> live = new MutableLiveData<>();
         String dateId = DateUtils.getTodayDateId();
@@ -38,13 +34,10 @@ public class AttendanceRepository {
                 .collection("days")
                 .document(dateId)
                 .addSnapshotListener((snap, e) -> {
-                    if (e != null) {
-                        live.setValue(null);
-                        return;
-                    }
+                    if (e != null) { live.setValue(null); return; }
                     if (snap != null && snap.exists()) {
                         Attendance att = snap.toObject(Attendance.class);
-                        att.setDateId(dateId);
+                        if (att != null) att.setDateId(dateId);
                         live.setValue(att);
                     } else {
                         live.setValue(null);
@@ -73,8 +66,13 @@ public class AttendanceRepository {
             if (!snap.exists()) {
                 // First punch of the day
                 updates.put("createdAt", FieldValue.serverTimestamp());
+                // Start current session
                 updates.put("inTime", FieldValue.serverTimestamp());
                 updates.put("outTime", null);
+                // Display helpers
+                updates.put("firstInTime", FieldValue.serverTimestamp());
+                updates.put("lastOutTime", null);
+                // Aggregates
                 updates.put("totalMinutes", 0L);
                 if (lat != null && lng != null) {
                     updates.put("latitude", lat);
@@ -85,15 +83,18 @@ public class AttendanceRepository {
             }
 
             Attendance old = snap.toObject(Attendance.class);
-            // If currently in a session (outTime == null), prevent double punch-in
+            // If already in an active session (outTime == null), block double IN
             if (old.getInTime() != null && old.getOutTime() == null) {
                 throw new FirebaseFirestoreException("Already punched in",
                         FirebaseFirestoreException.Code.ABORTED);
             }
 
-            // Start a new session: set inTime=now, clear outTime
+            // Begin a new session; keep firstInTime from the first ever IN
             updates.put("inTime", FieldValue.serverTimestamp());
             updates.put("outTime", null);
+            if (snap.getTimestamp("firstInTime") == null) {
+                updates.put("firstInTime", FieldValue.serverTimestamp());
+            }
             if (lat != null && lng != null) {
                 updates.put("latitude", lat);
                 updates.put("longitude", lng);
@@ -122,7 +123,6 @@ public class AttendanceRepository {
                         FirebaseFirestoreException.Code.FAILED_PRECONDITION);
             }
             if (old.getOutTime() != null) {
-                // Already punched out last session
                 throw new FirebaseFirestoreException("Already punched out",
                         FirebaseFirestoreException.Code.ABORTED);
             }
@@ -133,7 +133,11 @@ public class AttendanceRepository {
             long newTotalMinutes = prevMinutes + (deltaMillis / (1000 * 60));
 
             Map<String, Object> updates = new HashMap<>();
+            // Close current session
             updates.put("outTime", now);
+            // Update display helper
+            updates.put("lastOutTime", now);
+            // Meta + aggregates
             updates.put("updatedAt", now);
             updates.put("totalMinutes", newTotalMinutes);
             updates.put("deviceId", deviceId);
@@ -142,7 +146,7 @@ public class AttendanceRepository {
                 updates.put("longitude", lng);
             }
 
-            // Shift target 9h = 540 min
+            // 9h target
             if (newTotalMinutes >= 540) {
                 updates.put("status", "present_complete");
             } else {
@@ -152,5 +156,4 @@ public class AttendanceRepository {
             return null;
         });
     }
-
 }
