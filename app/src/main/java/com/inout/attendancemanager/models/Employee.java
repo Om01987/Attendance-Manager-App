@@ -39,6 +39,10 @@ public class Employee {
     // Admin flag for approval console access and admin routing
     private Boolean isAdmin;
 
+    // New fields:
+    private double officeLat;
+    private double officeLng;
+
     // Empty constructor for Firestore
     public Employee() {}
 
@@ -100,4 +104,10 @@ public class Employee {
     // Admin flag. Use Boolean wrapper to allow null, then check with Boolean.TRUE.equals(...)
     public Boolean getIsAdmin() { return isAdmin; }
     public void setIsAdmin(Boolean isAdmin) { this.isAdmin = isAdmin; }
+
+    // Getter/Setter:
+    public double getOfficeLat() { return officeLat; }
+    public void setOfficeLat(double officeLat) { this.officeLat = officeLat; }
+    public double getOfficeLng() { return officeLng; }
+    public void setOfficeLng(double officeLng) { this.officeLng = officeLng; }
 }

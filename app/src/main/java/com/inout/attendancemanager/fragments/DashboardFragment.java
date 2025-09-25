@@ -33,6 +33,7 @@ import com.inout.attendancemanager.models.AttendanceSummary;
 import com.inout.attendancemanager.models.Employee;
 import com.inout.attendancemanager.repositories.AttendanceRepository;
 import com.inout.attendancemanager.utils.DateUtils;
+import com.inout.attendancemanager.utils.GeofenceUtils;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -259,7 +260,6 @@ public class DashboardFragment extends Fragment {
             tvMissedDays.setText(String.valueOf(monthSummary.getMissedPunchDays()));
         }
 
-        // TODO: Hook to leave data from backend
         tvTotalLeaves.setText("20");
         tvUsedLeaves.setText("5");
         tvRemainingLeaves.setText("15");
@@ -284,23 +284,20 @@ public class DashboardFragment extends Fragment {
         Long total = todayAttendance.getTotalMinutes();
         if (total == null) total = 0L;
 
-        // Determine display values
         Date displayFirstIn = todayAttendance.getFirstInTime() != null
                 ? todayAttendance.getFirstInTime() : todayAttendance.getInTime();
         Date displayLastOut = todayAttendance.getLastOutTime() != null
                 ? todayAttendance.getLastOutTime() : todayAttendance.getOutTime();
 
         if (todayAttendance.getInTime() != null && todayAttendance.getOutTime() == null) {
-            // Active session
             isPunchedIn = true;
             tvCurrentStatus.setText("On Duty");
             tvInTime.setText(displayFirstIn != null ? DateUtils.formatTime(displayFirstIn) : "--:--");
             tvOutTime.setText("--:--");
-            updateWorkingHours(); // live from session inTime
+            updateWorkingHours();
             btnPunchAction.setText("Punch Out");
             btnPunchAction.setEnabled(true);
         } else {
-            // No active session
             isPunchedIn = false;
             tvInTime.setText(displayFirstIn != null ? DateUtils.formatTime(displayFirstIn) : "--:--");
             tvOutTime.setText(displayLastOut != null ? DateUtils.formatTime(displayLastOut) : "--:--");
@@ -323,7 +320,6 @@ public class DashboardFragment extends Fragment {
     }
 
     private void updateWorkingHours() {
-        // Live ticker from the active session start (session inTime)
         if (todayAttendance != null && todayAttendance.getInTime() != null && todayAttendance.getOutTime() == null) {
             long workingMinutes = (System.currentTimeMillis() - todayAttendance.getInTime().getTime()) / (1000 * 60);
             tvWorkingHours.setText(DateUtils.formatDuration(workingMinutes));
@@ -342,6 +338,33 @@ public class DashboardFragment extends Fragment {
 
         fusedLocationClient.getLastLocation()
                 .addOnSuccessListener(location -> {
+                    // Geofence: 500 m radius around office
+                    if (currentEmployee != null) {
+                        double oLat = currentEmployee.getOfficeLat();
+                        double oLng = currentEmployee.getOfficeLng();
+
+                        if (location == null) {
+                            Toast.makeText(getContext(),
+                                    "Location unavailable. Try again near a window.",
+                                    Toast.LENGTH_SHORT).show();
+                            resetPunchButton();
+                            return;
+                        }
+
+                        float dist = GeofenceUtils.distanceMeters(
+                                location.getLatitude(), location.getLongitude(),
+                                oLat, oLng
+                        );
+
+                        if (dist > 500f) {
+                            Toast.makeText(getContext(),
+                                    "Outside office by " + Math.round(dist) + " m. Must be within 500 m.",
+                                    Toast.LENGTH_LONG).show();
+                            resetPunchButton();
+                            return;
+                        }
+                    }
+
                     if (isPunchedIn) {
                         punchOut(location);
                     } else {
@@ -350,12 +373,16 @@ public class DashboardFragment extends Fragment {
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Failed to get location", e);
-                    if (isPunchedIn) {
-                        punchOut(null);
-                    } else {
-                        punchIn(null);
-                    }
+                    Toast.makeText(getContext(),
+                            "Location error. Please enable GPS and try again.",
+                            Toast.LENGTH_SHORT).show();
+                    resetPunchButton();
                 });
+    }
+
+    private void resetPunchButton() {
+        btnPunchAction.setEnabled(true);
+        btnPunchAction.setText(isPunchedIn ? "Punch Out" : "Punch In");
     }
 
     private void punchIn(@Nullable Location location) {
