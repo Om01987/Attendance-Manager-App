@@ -2,7 +2,6 @@ package com.inout.attendancemanager.fragments;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
-import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -33,7 +32,6 @@ import com.inout.attendancemanager.models.AttendanceSummary;
 import com.inout.attendancemanager.models.Employee;
 import com.inout.attendancemanager.repositories.AttendanceRepository;
 import com.inout.attendancemanager.utils.DateUtils;
-import com.inout.attendancemanager.utils.GeofenceUtils;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -363,60 +361,18 @@ public class DashboardFragment extends Fragment {
             return;
         }
 
-        // Open bottom sheet that shows distance and controls Punch In/Out
+        // In production, load this from Firestore org settings
+        boolean beaconRequired = false; // Set true to require beacon presence
+
         PunchBottomSheet.show(
                 this,
                 isPunchedIn,
                 currentEmployee.getOfficeLat(),
                 currentEmployee.getOfficeLng(),
                 500f,
-                currentUserId
+                currentUserId,
+                beaconRequired
         );
-    }
-
-
-
-    private void resetPunchButton() {
-        btnPunchAction.setEnabled(true);
-        btnPunchAction.setText(isPunchedIn ? "Punch Out" : "Punch In");
-    }
-
-    private void punchIn(@Nullable Location location) {
-        String deviceId = android.provider.Settings.Secure.getString(
-                requireContext().getContentResolver(), android.provider.Settings.Secure.ANDROID_ID);
-
-        attendanceRepo.punchIn(
-                deviceId,
-                location != null ? location.getLatitude() : null,
-                location != null ? location.getLongitude() : null
-        ).addOnSuccessListener(aVoid -> {
-            Toast.makeText(getContext(), "Punched In Successfully", Toast.LENGTH_SHORT).show();
-            btnPunchAction.setEnabled(true);
-        }).addOnFailureListener(e -> {
-            Log.e(TAG, "Failed to punch in", e);
-            btnPunchAction.setEnabled(true);
-            btnPunchAction.setText("Punch In");
-            Toast.makeText(getContext(), e.getMessage(), Toast.LENGTH_SHORT).show();
-        });
-    }
-
-    private void punchOut(@Nullable Location location) {
-        String deviceId = android.provider.Settings.Secure.getString(
-                requireContext().getContentResolver(), android.provider.Settings.Secure.ANDROID_ID);
-
-        attendanceRepo.punchOut(
-                deviceId,
-                location != null ? location.getLatitude() : null,
-                location != null ? location.getLongitude() : null
-        ).addOnSuccessListener(aVoid -> {
-            Toast.makeText(getContext(), "Punched Out Successfully", Toast.LENGTH_SHORT).show();
-            btnPunchAction.setEnabled(true);
-        }).addOnFailureListener(e -> {
-            Log.e(TAG, "Failed to punch out", e);
-            btnPunchAction.setEnabled(true);
-            btnPunchAction.setText("Punch Out");
-            Toast.makeText(getContext(), e.getMessage(), Toast.LENGTH_SHORT).show();
-        });
     }
 
     private void startCountdownTimer() {

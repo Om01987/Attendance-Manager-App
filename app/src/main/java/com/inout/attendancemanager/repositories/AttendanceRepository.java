@@ -34,7 +34,10 @@ public class AttendanceRepository {
                 .collection("days")
                 .document(dateId)
                 .addSnapshotListener((snap, e) -> {
-                    if (e != null) { live.setValue(null); return; }
+                    if (e != null) {
+                        live.setValue(null);
+                        return;
+                    }
                     if (snap != null && snap.exists()) {
                         Attendance att = snap.toObject(Attendance.class);
                         if (att != null) att.setDateId(dateId);
@@ -46,7 +49,13 @@ public class AttendanceRepository {
         return live;
     }
 
+    // Backward-compatible manual punchIn
     public Task<Void> punchIn(String deviceId, Double lat, Double lng) {
+        return punchIn(deviceId, lat, lng, null, null);
+    }
+
+    // New punchIn with optional beacon metadata
+    public Task<Void> punchIn(String deviceId, Double lat, Double lng, String beaconId, Integer beaconRssi) {
         String dateId = DateUtils.getTodayDateId();
         DocumentReference docRef = db.collection("attendance")
                 .document(userId)
@@ -59,9 +68,16 @@ public class AttendanceRepository {
             updates.put("userId", userId);
             updates.put("dateId", dateId);
             updates.put("deviceId", deviceId);
-            updates.put("method", "manual");
+            updates.put("method", beaconId != null ? "beacon" : "manual");
             updates.put("updatedAt", FieldValue.serverTimestamp());
             updates.put("status", "present_in_progress");
+
+            // Optional beacon audit fields
+            if (beaconId != null) {
+                updates.put("beaconId", beaconId);
+                updates.put("beaconRssi", beaconRssi);
+                updates.put("beaconSeenAt", FieldValue.serverTimestamp());
+            }
 
             if (!snap.exists()) {
                 // First punch of the day
@@ -104,7 +120,13 @@ public class AttendanceRepository {
         });
     }
 
+    // Backward-compatible manual punchOut
     public Task<Void> punchOut(String deviceId, Double lat, Double lng) {
+        return punchOut(deviceId, lat, lng, null, null);
+    }
+
+    // New punchOut with optional beacon metadata
+    public Task<Void> punchOut(String deviceId, Double lat, Double lng, String beaconId, Integer beaconRssi) {
         String dateId = DateUtils.getTodayDateId();
         DocumentReference docRef = db.collection("attendance")
                 .document(userId)
@@ -141,6 +163,15 @@ public class AttendanceRepository {
             updates.put("updatedAt", now);
             updates.put("totalMinutes", newTotalMinutes);
             updates.put("deviceId", deviceId);
+            updates.put("method", beaconId != null ? "beacon" : "manual");
+
+            // Optional beacon audit fields
+            if (beaconId != null) {
+                updates.put("beaconId", beaconId);
+                updates.put("beaconRssi", beaconRssi);
+                updates.put("beaconSeenAt", now);
+            }
+
             if (lat != null && lng != null) {
                 updates.put("latitude", lat);
                 updates.put("longitude", lng);

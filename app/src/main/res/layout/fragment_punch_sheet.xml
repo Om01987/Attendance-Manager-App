@@ -27,7 +27,7 @@
             <ImageView
                 android:layout_width="28dp"
                 android:layout_height="28dp"
-                android:src="@drawable/ic_place_24"
+                android:src="@drawable/ic_punch"
                 android:alpha="0.9"
                 app:tint="?attr/colorPrimary" />
 
@@ -74,7 +74,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:gravity="center_vertical">
+                android:gravity="center_vertical"
+                android:paddingBottom="8dp">
 
                 <com.google.android.material.chip.Chip
                     android:id="@+id/chip_distance"
@@ -93,6 +94,33 @@
                     android:layout_marginStart="10dp"
                     app:indicatorSize="22dp"
                     app:trackThickness="4dp" />
+            </LinearLayout>
+
+            <!-- Beacon status row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_beacon_status"
+                    style="@style/Widget.Material3.Chip.Assist.Elevated"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Beacon: scanning..."
+                    app:chipIcon="@drawable/ic_bluetooth_24"
+                    app:chipIconTint="?attr/colorSecondary"
+                    android:textColor="?attr/colorOnSurfaceVariant" />
+
+                <com.google.android.material.progressindicator.CircularProgressIndicator
+                    android:id="@+id/progress_beacon"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_marginStart="10dp"
+                    app:indicatorSize="22dp"
+                    app:trackThickness="4dp"
+                    app:indicatorColor="?attr/colorSecondary" />
             </LinearLayout>
         </LinearLayout>
 
@@ -126,6 +154,20 @@
                 app:iconPadding="10dp" />
 
             <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_punch_beacon"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="Punch via Beacon"
+                android:textStyle="bold"
+                android:textAllCaps="false"
+                app:cornerRadius="16dp"
+                app:icon="@drawable/ic_bluetooth_24"
+                app:iconGravity="textStart"
+                app:iconPadding="10dp"
+                android:layout_marginTop="8dp" />
+
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_cancel"
                 style="@style/Widget.Material3.Button.OutlinedButton"
                 android:layout_width="match_parent"
@@ -133,7 +175,7 @@
                 android:text="Cancel"
                 android:textAllCaps="false"
                 app:cornerRadius="16dp"
-                android:layout_marginTop="10dp" />
+                android:layout_marginTop="8dp" />
         </LinearLayout>
 
     </LinearLayout>
